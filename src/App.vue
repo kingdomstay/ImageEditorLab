@@ -24,6 +24,14 @@
           <el-icon><search /></el-icon>
           <span>Масштабирование</span>
         </el-menu-item>
+        <el-menu-item index="4" @click="activateResizing">
+          <el-icon><operation /></el-icon>
+          <span>Изменение изображения</span>
+        </el-menu-item>
+        <el-menu-item index="5" @click="activateSaving">
+          <el-icon><upload /></el-icon>
+          <span>Сохранение</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-main style="padding: 0; background-color: var(--el-bg-color-overlay); position: relative;">
@@ -92,6 +100,17 @@
             <el-option v-for="scale in scaleOptions" :key="scale" :label="`${scale}`" :value="scale"></el-option>
           </el-select>
           <el-slider style="margin: auto 10px;" v-model="scalePercentage" @change="updateScale" :min="12" :max="300" :step="1" />
+        </el-form-item>
+      </el-form>
+      <el-form v-if="selectedSection === 'resize'">
+        <el-form-item>
+          <el-text size="large" style="padding-bottom: 1rem;">Изменение изображения</el-text>
+        </el-form-item>
+      </el-form>
+      <el-form v-if="selectedSection === 'save'">
+        <el-form-item>
+          <el-text size="large" style="padding-bottom: 1rem;">Сохранение изображения</el-text>
+          <el-button @click="saveImage">Сохранить локально</el-button>
         </el-form-item>
       </el-form>
       <el-result v-if="selectedSection === null" icon="info" title="Нет доступных действий">
@@ -215,6 +234,14 @@ const activateZooming = () => {
   selectedSection.value = 'zoom';
 };
 
+const activateResizing = () => {
+  selectedSection.value = 'resize';
+}
+
+const activateSaving = () => {
+  selectedSection.value = 'save';
+}
+
 // Обработчик движения мыши
 const handleMouseMove = (event: MouseEvent) => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -270,6 +297,46 @@ const handleWheel = (event: WheelEvent) => {
   scalePercentage.value = Math.min(Math.max(12, scalePercentage.value), 300); // Ограничиваем значение
   updateScale(); // Обновляем масштаб
 };
+
+
+
+/// СОХРАНЕНИЕ
+const saveImage = () => {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d');
+  if (!ctx || !imgRef.value) return;
+
+  // Создаём новый canvas для сохранения
+  const saveCanvas = document.createElement('canvas');
+  const saveCtx = saveCanvas.getContext('2d');
+
+  // Устанавливаем размеры нового canvas
+  saveCanvas.width = imgRenderedWidth.value;  // Ширина сохраняемой области
+  saveCanvas.height = imgRenderedHeight.value; // Высота сохраняемой области
+
+  // Копируем область изображения на новый canvas
+  saveCtx?.drawImage(
+    imgRef.value,
+    0,
+    0,
+    imgRef.value.width,
+    imgRef.value.height,
+    0,
+    0,
+    imgRenderedWidth.value,
+    imgRenderedHeight.value
+  );
+
+  // Получаем данные изображения в формате PNG
+  const dataURL = saveCanvas.toDataURL('image/png');
+
+  // Создаём ссылку для скачивания
+  const link = document.createElement('a');
+  link.href = dataURL; // Устанавливаем ссылку на изображение
+  link.download = 'image.png'; // Устанавливаем имя файла для скачивания
+  link.click(); // Симулируем клик, чтобы инициировать скачивание
+};
+
 
 onMounted(() => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
