@@ -20,9 +20,9 @@
           <el-icon><Position /></el-icon>
           <span>Курсор</span>
         </el-menu-item>
-        <el-menu-item index="3" @click="doSomethingElse">
-          <el-icon><setting /></el-icon>
-          <span>Настройки</span>
+        <el-menu-item index="3" @click="activateZooming">
+          <el-icon><search /></el-icon>
+          <span>Масштабирование</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -30,7 +30,7 @@
       <canvas id="canvas" style="width: 100%; height: 100%; display: block;"></canvas>
     </el-main>
     <el-aside style="border-left: 1px solid var(--el-menu-border-color); padding: 1rem; ">
-      <el-form v-if="showPosition">
+      <el-form v-if="selectedSection === 'position'">
         <el-form-item v-if="imgWidth && imgHeight">
           <el-text size="large" style="padding-bottom: 1rem;">Размер изображения</el-text>
           <el-input readonly
@@ -85,7 +85,16 @@
           </el-input>
         </el-form-item>
       </el-form>
-      <el-result v-if="!showPosition" icon="info" title="Нет доступных действий">
+      <el-form v-if="selectedSection === 'zoom'">
+        <el-form-item>
+          <el-text size="large" style="padding-bottom: 1rem;">Масштаб изображения</el-text>
+          <el-select v-model="scalePercentage" @change="updateScale">
+            <el-option v-for="scale in scaleOptions" :key="scale" :label="`${scale}`" :value="scale"></el-option>
+          </el-select>
+          <el-slider style="margin: auto 10px;" v-model="scalePercentage" @change="updateScale" :min="12" :max="300" :step="1" />
+        </el-form-item>
+      </el-form>
+      <el-result v-if="selectedSection === null" icon="info" title="Нет доступных действий">
         <template #sub-title>
           <p>Сперва выберите инструмент в боковой панели</p>
         </template>
@@ -105,9 +114,13 @@ const imgRenderedWidth = ref(0);
 const imgRenderedHeight = ref(0);
 const imgWidth = ref(0);
 const imgHeight = ref(0)
-const showPosition = ref(false);
+const selectedSection = ref(null);
 const cursorPosition = ref({ x: -1, y: -1 });
 const pixelColor = ref({r: 0, g: 0, b: 0, a: 0})
+
+// Опции для выбора масштаба
+const scaleOptions = ref([12, 25, 50, 75, 100, 150, 200, 250, 300]);
+const scalePercentage = ref(100); // начальный масштаб в процентах
 
 const uploadLocalImage = () => {
   const input = document.createElement('input');
@@ -153,8 +166,10 @@ const drawImage = () => {
   const img = imgRef.value;
   if (!ctx || !img) return;
 
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
+  const padding = 50; // Отступ 50 пикселей
+
+  const canvasWidth = canvas.width - padding * 2;  // Учитываем отступ по X
+  const canvasHeight = canvas.height - padding * 2; // Учитываем отступ по Y
   const imageAspectRatio = img.width / img.height;
   imgWidth.value = img.width;
   imgHeight.value = img.height;
@@ -168,16 +183,17 @@ const drawImage = () => {
     imgRenderedWidth.value = imgRenderedHeight.value * imageAspectRatio;
   }
 
-  imgOffsetX.value = (canvasWidth - imgRenderedWidth.value) / 2;
-  imgOffsetY.value = (canvasHeight - imgRenderedHeight.value) / 2;
+  // Теперь добавляем отступы по X и Y
+  imgOffsetX.value = (canvasWidth - imgRenderedWidth.value) / 2 + padding;
+  imgOffsetY.value = (canvasHeight - imgRenderedHeight.value) / 2 + padding;
 
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очищаем canvas перед отрисовкой
   ctx.drawImage(
-      img,
-      imgOffsetX.value,
-      imgOffsetY.value,
-      imgRenderedWidth.value,
-      imgRenderedHeight.value
+    img,
+    imgOffsetX.value,
+    imgOffsetY.value,
+    imgRenderedWidth.value,
+    imgRenderedHeight.value
   );
 };
 
@@ -189,17 +205,14 @@ const resizeCanvas = () => {
   drawImage();
 };
 
-// Обработчик колёсика мыши для изменения масштаба
-const handleWheel = (event: WheelEvent) => {
-  event.preventDefault();
-  scale.value += event.deltaY * -0.001;
-  scale.value = Math.min(Math.max(.125, scale.value), 4); // Ограничиваем масштаб от 0.125 до 4
-  drawImage();
+// Активация режима отображения позиции курсора и цвета пикселя
+const activatePositioning = () => {
+  selectedSection.value = 'position';
 };
 
 // Активация режима отображения позиции курсора и цвета пикселя
-const activatePositioning = () => {
-  showPosition.value = !showPosition.value;
+const activateZooming = () => {
+  selectedSection.value = 'zoom';
 };
 
 // Обработчик движения мыши
@@ -237,6 +250,27 @@ const handleMouseMove = (event: MouseEvent) => {
   }
 };
 
+/////// МАСШТАБИРОВАНИЕ
+// Обработчик изменения масштаба
+const updateScale = () => {
+  scale.value = scalePercentage.value / 100; // Обновляем значение scale
+  drawImage(); // Перерисовываем изображение с новым масштабом
+};
+
+// Обработчик изменения масштаба через селектор
+const updateScaleFromSelect = (value: number) => {
+  scalePercentage.value = value; // Обновляем значение с селектора
+  updateScale(); // Обновляем масштаб
+};
+
+// Обработчик колёсика мыши для изменения масштаба
+const handleWheel = (event: WheelEvent) => {
+  event.preventDefault();
+  scalePercentage.value += event.deltaY * -0.1; // Обновляем значение масштаба
+  scalePercentage.value = Math.min(Math.max(12, scalePercentage.value), 300); // Ограничиваем значение
+  updateScale(); // Обновляем масштаб
+};
+
 onMounted(() => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   window.addEventListener('resize', resizeCanvas);
@@ -251,10 +285,6 @@ onUnmounted(() => {
   canvas.removeEventListener('wheel', handleWheel);
   canvas.removeEventListener('mousemove', handleMouseMove);
 });
-
-const doSomethingElse = () => {
-  console.log('Другое действие выполнено');
-};
 
 </script>
 
