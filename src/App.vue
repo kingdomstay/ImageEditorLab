@@ -102,11 +102,49 @@
           <el-slider style="margin: auto 10px;" v-model="scalePercentage" @change="updateScale" :min="12" :max="300" :step="1" />
         </el-form-item>
       </el-form>
-      <el-form v-if="selectedSection === 'resize'">
-        <el-form-item>
-          <el-text size="large" style="padding-bottom: 1rem;">Изменение изображения</el-text>
-        </el-form-item>
-      </el-form>
+      <el-form v-if="selectedSection === 'resize'" label-position="top">
+    <el-form-item>
+      <el-text size="large" style="padding-bottom: 1rem;">Изменение размера изображения</el-text>
+    </el-form-item>
+    
+    <el-form-item>
+      <el-text>Общее количество пикселей: {{ originalPixels }} MP (до) / {{ newPixels }} MP (после)</el-text>
+    </el-form-item>
+
+    <el-form-item label="Режим изменения размера">
+      <el-select v-model="resizeMode" @change="updateFields">
+        <el-option label="Процент" value="percent"></el-option>
+        <el-option label="Пиксели" value="pixels"></el-option>
+      </el-select>
+    </el-form-item>
+
+    <el-form-item label="Новая ширина">
+      <el-input v-model="newWidth" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Ширина (пиксели)'" />
+    </el-form-item>
+    
+    <el-form-item label="Новая высота">
+      <el-input v-model="newHeight" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Высота (пиксели)'" />
+    </el-form-item>
+
+    <el-form-item>
+      <el-checkbox v-model="maintainAspectRatio" @change="toggleAspectRatio" class="aspect-ratio-checkbox">
+        <span>Сохранить пропорции</span>
+      </el-checkbox>
+    </el-form-item>
+
+    <el-form-item label="Алгоритм интерполяции">
+      <el-select v-model="interpolationMethod">
+        <el-option label="Ближайший сосед" value="nearest" />
+      </el-select>
+      <el-tooltip effect="dark" content="Алгоритм ближайшего соседа используется для быстрого уменьшения изображения без сложных вычислений." style="margin-left: 10px;">
+        <el-button size="mini">?</el-button>
+      </el-tooltip>
+    </el-form-item>
+
+    <el-form-item>
+      <el-button type="primary" @click="confirmResize">Подтвердить</el-button>
+    </el-form-item>
+  </el-form>
       <el-form v-if="selectedSection === 'save'">
         <el-form-item>
           <el-text size="large" style="padding-bottom: 1rem;">Сохранение изображения</el-text>
@@ -136,6 +174,97 @@ const imgHeight = ref(0)
 const selectedSection = ref(null);
 const cursorPosition = ref({ x: -1, y: -1 });
 const pixelColor = ref({r: 0, g: 0, b: 0, a: 0})
+const resizeMode = ref('percent');
+    const newWidth = ref(100);
+    const newHeight = ref(100);
+    const maintainAspectRatio = ref(true);
+    const originalPixels = ref(0);
+    const newPixels = ref(0);
+    const interpolationMethod = ref('nearest');
+
+    const toggleAspectRatio = () => {
+      if (maintainAspectRatio.value) {
+        newHeight.value = Math.round((newWidth.value * imgHeight.value) / imgWidth.value);
+      }
+    };
+
+    const updateFields = () => {
+      if (resizeMode.value === 'percent') {
+        newWidth.value = 100;
+        newHeight.value = 100;
+      }
+    };
+
+    const confirmResize = () => {
+      if (resizeMode.value === 'percent' && (newWidth.value <= 0 || newHeight.value <= 0)) {
+        alert('Введите допустимое значение для ширины и высоты.');
+        return;
+      }
+
+      let scaleX = resizeMode.value === 'percent' ? newWidth.value / 100 : newWidth.value / imgWidth.value;
+      let scaleY = resizeMode.value === 'percent' ? newHeight.value / 100 : newHeight.value / imgHeight.value;
+
+      if (maintainAspectRatio.value) {
+        const aspectRatio = imgWidth.value / imgHeight.value;
+        if (scaleX > scaleY) {
+          scaleX = scaleY;
+          newWidth.value = Math.round(imgWidth.value * scaleX);
+        } else {
+          scaleY = scaleX;
+          newHeight.value = Math.round(imgHeight.value * scaleY);
+        }
+      }
+
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value);
+
+      const resizedImageData = resizeNearestNeighbor(srcImageData, newWidth.value, newHeight.value);
+
+      const newCanvas = document.createElement('canvas');
+      const newCtx = newCanvas.getContext('2d');
+      newCanvas.width = newWidth.value;
+      newCanvas.height = newHeight.value;
+      newCtx.putImageData(resizedImageData, 0, 0);
+
+      imgRef.value = new Image();
+      imgRef.value.src = newCanvas.toDataURL();
+      imgRef.value.onload = () => {
+        drawImage();
+      };
+
+      newPixels.value = (newWidth.value * newHeight.value) / 1000000;
+    };
+
+    const resizeNearestNeighbor = (srcImageData, width, height) => {
+      const srcPixels = srcImageData.data;
+      const srcWidth = srcImageData.width;
+      const srcHeight = srcImageData.height;
+      const dstImageData = new ImageData(width, height);
+      const dstPixels = dstImageData.data;
+
+      const xFactor = srcWidth / width;
+      const yFactor = srcHeight / height;
+
+      let dstIndex = 0;
+      let srcIndex, offset;
+
+      for (let y = 0; y < height; y++) {
+        offset = ((y * yFactor) | 0) * srcWidth;
+
+        for (let x = 0; x < width; x++) {
+          srcIndex = (offset + x * xFactor) << 2;
+
+          dstPixels[dstIndex] = srcPixels[srcIndex];
+          dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+          dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+          dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
+          dstIndex += 4;
+        }
+      }
+
+      return dstImageData;
+    };
 
 // Опции для выбора масштаба
 const scaleOptions = ref([12, 25, 50, 75, 100, 150, 200, 250, 300]);
