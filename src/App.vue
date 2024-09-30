@@ -151,7 +151,7 @@
       </el-form>
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
           <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
-          <el-button style="margin: .2rem auto;" type="secondary" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
+          <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
         </el-empty>
     </el-aside>
   </el-container>
@@ -178,6 +178,10 @@ const maintainAspectRatio = ref(true);
 const originalPixels = ref(0);
 const newPixels = ref(0);
 const interpolationMethod = ref('nearest');
+
+const isDragging = ref(false);  // Отслеживает, когда пользователь перемещает изображение
+const dragStart = ref({ x: 0, y: 0 });  // Начальная точка нажатия
+const imgStartOffset = ref({ x: 0, y: 0 });  // Смещение изображения при начале перемещения
 
 const imageUploaded = ref(0);
 
@@ -311,7 +315,7 @@ const uploadUrlImage = () => {
   }
 };
 
-const drawImage = () => {
+const drawImage = (resetPosition = true) => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d');
   const img = imgRef.value;
@@ -335,8 +339,10 @@ const drawImage = () => {
   }
 
   // Теперь добавляем отступы по X и Y
-  imgOffsetX.value = (canvasWidth - imgRenderedWidth.value) / 2 + padding;
-  imgOffsetY.value = (canvasHeight - imgRenderedHeight.value) / 2 + padding;
+  if (resetPosition) {
+    imgOffsetX.value = (canvasWidth - imgRenderedWidth.value) / 2 + padding;
+    imgOffsetY.value = (canvasHeight - imgRenderedHeight.value) / 2 + padding;
+  }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очищаем canvas перед отрисовкой
   ctx.drawImage(
@@ -477,12 +483,69 @@ const saveImage = () => {
   link.click(); // Симулируем клик, чтобы инициировать скачивание
 };
 
+//// Инструмент рука
+
+// Обработчик нажатия кнопки мыши (захват изображения)
+const handleDragMouseDown = (event: MouseEvent) => {
+  if (selectedSection.value === 'move') {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+    console.log('work')
+    isDragging.value = true;
+    dragStart.value = { x: event.clientX, y: event.clientY };
+    imgStartOffset.value = { x: imgOffsetX.value, y: imgOffsetY.value };
+    canvas.style.cursor = "grabbing";
+  }
+};
+
+// Обработчик движения мыши (перемещение изображения)
+const handleDragMouseMove = (event: MouseEvent) => {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+  if (selectedSection.value === 'move' && !isDragging.value) {
+    canvas.style.cursor = "grab";
+  }
+  
+  if (isDragging.value) {
+    console.log('imgOffsetX:', imgOffsetX.value, 'imgOffsetY:', imgOffsetY.value);
+    const deltaX = event.clientX - dragStart.value.x;
+    const deltaY = event.clientY - dragStart.value.y;
+
+    console.log('deltaX:', deltaX, 'deltaY', deltaY);
+
+    console.log(imgStartOffset.value.x + deltaX, imgStartOffset.value.y + deltaY)
+
+    imgOffsetX.value = imgStartOffset.value.x + deltaX;
+    imgOffsetY.value = imgStartOffset.value.y + deltaY;
+
+    drawImage(false);  // Перерисовываем изображение с новыми смещениями, без центрирования
+  }
+};
+
+// Обработчик отпускания мыши (окончание перемещения)
+const handleDragMouseUp = () => {
+  if (isDragging.value) {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+    isDragging.value = false;
+    canvas.style.cursor = "default";
+  }
+};
+
+
 
 onMounted(() => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   window.addEventListener('resize', resizeCanvas);
   canvas.addEventListener('wheel', handleWheel);
   canvas.addEventListener('mousemove', handleMouseMove);
+  
+  // Рука
+  canvas.addEventListener('mousedown', handleDragMouseDown);
+  canvas.addEventListener('mousemove', handleDragMouseMove);
+  canvas.addEventListener('mouseup', handleDragMouseUp);
+  canvas.addEventListener('mouseleave', handleDragMouseUp);
+  // ====
   resizeCanvas();
 });
 
@@ -491,6 +554,13 @@ onUnmounted(() => {
   window.removeEventListener('resize', resizeCanvas);
   canvas.removeEventListener('wheel', handleWheel);
   canvas.removeEventListener('mousemove', handleMouseMove);
+
+  // Рука
+  canvas.removeEventListener('mousedown', handleDragMouseDown);
+  canvas.removeEventListener('mousemove', handleDragMouseMove);
+  canvas.removeEventListener('mouseup', handleDragMouseUp);
+  canvas.removeEventListener('mouseleave', handleDragMouseUp);
+  // ====
 });
 
 </script>
