@@ -6,37 +6,27 @@
           default-active="1"
           collapse
       >
-        <el-sub-menu index="1">
-          <template #title>
-            <el-icon><PictureFilled /></el-icon>
-            <span>Загрузить изображение</span>
-          </template>
-          <el-menu-item-group title="Загрузить изображение">
-            <el-menu-item index="1-1" @click="uploadLocalImage">Из локального хранилища</el-menu-item>
-            <el-menu-item index="1-2" @click="uploadUrlImage">Через URL адрес</el-menu-item>
-          </el-menu-item-group>
-        </el-sub-menu>
-        <el-menu-item index="2" @click="activatePositioning">
+        <el-menu-item index="2" id="startTool" @click="activatePositioning">
           <el-icon><Position /></el-icon>
           <span>Курсор</span>
         </el-menu-item>
-        <el-menu-item index="3" @click="activateZooming">
+        <el-menu-item index="3" @click="activateZooming" :disabled="!imageUploaded">
           <el-icon><zoomIn /></el-icon>
           <span>Масштабирование</span>
         </el-menu-item>
-        <el-menu-item index="4" @click="activateResizing">
+        <el-menu-item index="4" @click="activateResizing" :disabled="!imageUploaded">
           <el-icon><crop /></el-icon>
           <span>Изменение изображения</span>
         </el-menu-item>
-        <el-menu-item index="5" @click="activateSaving">
+        <el-menu-item index="5" @click="activateSaving" :disabled="!imageUploaded">
           <el-icon><download /></el-icon>
           <span>Сохранение</span>
         </el-menu-item>
-        <el-menu-item index="6" @click="activateMoving">
+        <el-menu-item index="6" @click="activateMoving" :disabled="!imageUploaded">
           <el-icon><rank /></el-icon>
           <span>Перемещение</span>
         </el-menu-item>
-        <el-menu-item index="7" @click="activatePicking">
+        <el-menu-item index="7" @click="activatePicking" :disabled="!imageUploaded">
           <el-icon><stamp /></el-icon>
           <span>Пипетка</span>
         </el-menu-item>
@@ -53,13 +43,13 @@
                     :model-value="imgWidth"
                     placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>X</template>
+            <template class="minified-input-label" #prepend>X</template>
           </el-input>
           <el-input readonly
                     :model-value="imgHeight"
                     placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>Y</template>
+            <template class="minified-input-label" #prepend>Y</template>
           </el-input>
         </el-form-item>
         <el-form-item>
@@ -68,13 +58,13 @@
               :model-value="cursorPosition.x >= 0? cursorPosition.x + ' px': undefined"
               placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>X</template>
+            <template class="minified-input-label" #prepend>X</template>
           </el-input>
           <el-input readonly
                     :model-value="cursorPosition.y >= 0? cursorPosition.y + ' px': undefined"
               placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>Y</template>
+            <template class="minified-input-label" #prepend>Y</template>
           </el-input>
         </el-form-item>
         <el-form-item>
@@ -85,19 +75,19 @@
                     :model-value="pixelColor.r || cursorPosition.x >= 0 || cursorPosition.y >= 0? pixelColor.r: undefined"
                     placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>R</template>
+            <template class="minified-input-label" #prepend>R</template>
           </el-input>
           <el-input readonly
                     :model-value="pixelColor.g || cursorPosition.x >= 0 || cursorPosition.y >= 0? pixelColor.g: undefined"
                     placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>G</template>
+            <template class="minified-input-label" #prepend>G</template>
           </el-input>
           <el-input readonly
                     :model-value="pixelColor.b || cursorPosition.x >= 0 || cursorPosition.y >= 0? pixelColor.b: undefined"
                     placeholder="Нет данных"
           >
-            <template style="width: 1rem" #prepend>B</template>
+            <template class="minified-input-label" #prepend>B</template>
           </el-input>
         </el-form-item>
       </el-form>
@@ -159,11 +149,10 @@
           <el-button @click="saveImage">Сохранить локально</el-button>
         </el-form-item>
       </el-form>
-      <el-result v-if="selectedSection === null" icon="info" title="Нет доступных действий">
-        <template #sub-title>
-          <p>Сперва выберите инструмент в боковой панели</p>
-        </template>
-      </el-result>
+      <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
+          <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
+          <el-button style="margin: .2rem auto;" type="secondary" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
+        </el-empty>
     </el-aside>
   </el-container>
 </template>
@@ -189,6 +178,8 @@ const maintainAspectRatio = ref(true);
 const originalPixels = ref(0);
 const newPixels = ref(0);
 const interpolationMethod = ref('nearest');
+
+const imageUploaded = ref(0);
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
@@ -292,6 +283,8 @@ const uploadLocalImage = () => {
         img.onload = () => {
           imgRef.value = img;
           drawImage();
+          imageUploaded.value = 1;
+          document.getElementById("startTool").click();
         };
       };
       reader.readAsDataURL(file);
@@ -309,6 +302,8 @@ const uploadUrlImage = () => {
     img.onload = () => {
       imgRef.value = img;
       drawImage();
+      imageUploaded.value = 1;
+      document.getElementById("startTool").click();
     };
     img.onerror = () => {
       alert('Не удалось загрузить изображение. Проверьте URL.');
@@ -507,5 +502,8 @@ onUnmounted(() => {
   height: 32px;
   width: 100%;
   background-color: rgba(0, 0, 0, 1);
+}
+.minified-input-label {
+  width: 1rem;
 }
 </style>
