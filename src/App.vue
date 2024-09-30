@@ -6,30 +6,42 @@
           default-active="1"
           collapse
       >
-        <el-menu-item index="2" id="startTool" @click="activatePositioning">
-          <el-icon><Position /></el-icon>
-          <span>Курсор</span>
-        </el-menu-item>
-        <el-menu-item index="3" @click="activateZooming" :disabled="!imageUploaded">
+        <el-tooltip effect="light" content="Отслеживание курсора на изображении" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="2" id="startTool" @click="selectSection('position')">
+            <el-icon><Position /></el-icon>
+            <span>Курсор</span>
+          </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Масштабирование изображения" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="3" @click="selectSection('zoom')" :disabled="!imageUploaded">
           <el-icon><zoomIn /></el-icon>
           <span>Масштабирование</span>
         </el-menu-item>
-        <el-menu-item index="4" @click="activateResizing" :disabled="!imageUploaded">
-          <el-icon><crop /></el-icon>
-          <span>Изменение изображения</span>
-        </el-menu-item>
-        <el-menu-item index="5" @click="activateSaving" :disabled="!imageUploaded">
-          <el-icon><download /></el-icon>
-          <span>Сохранение</span>
-        </el-menu-item>
-        <el-menu-item index="6" @click="activateMoving" :disabled="!imageUploaded">
-          <el-icon><rank /></el-icon>
-          <span>Перемещение</span>
-        </el-menu-item>
-        <el-menu-item index="7" @click="activatePicking" :disabled="!imageUploaded">
-          <el-icon><stamp /></el-icon>
-          <span>Пипетка</span>
-        </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Изменение размера изображения" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="4" @click="selectSection('resize')" :disabled="!imageUploaded">
+            <el-icon><crop /></el-icon>
+            <span>Изменение изображения</span>
+          </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Сохранение изображения в хранилище" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="5" @click="selectSection('save')" :disabled="!imageUploaded">
+            <el-icon><download /></el-icon>
+            <span>Сохранение</span>
+          </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Инструмент руки для перемещения изображения" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="6" @click="selectSection('move')" :disabled="!imageUploaded">
+            <el-icon><rank /></el-icon>
+            <span>Перемещение</span>
+          </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Инструмент пипетки для получения цвета и поиска оптимальной контрастности" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="7" @click="selectSection('picker')" :disabled="!imageUploaded">
+            <el-icon><stamp /></el-icon>
+            <span>Пипетка</span>
+          </el-menu-item>
+        </el-tooltip>
       </el-menu>
     </el-aside>
     <el-main style="padding: 0; background-color: var(--el-bg-color-overlay); position: relative;">
@@ -184,6 +196,8 @@ const dragStart = ref({ x: 0, y: 0 });  // Начальная точка наж�
 const imgStartOffset = ref({ x: 0, y: 0 });  // Смещение изображения при начале перемещения
 
 const imageUploaded = ref(0);
+
+const helpLabelsActive = ref(0); // Модификатор для tooltip's
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
@@ -362,30 +376,14 @@ const resizeCanvas = () => {
   drawImage();
 };
 
-// Активация режима отображения позиции курсора и цвета пикселя
-const activatePositioning = () => {
-  selectedSection.value = 'position';
-};
-
-// Активация режима отображения позиции курсора и цвета пикселя
-const activateZooming = () => {
-  selectedSection.value = 'zoom';
-};
-
-const activateResizing = () => {
-  selectedSection.value = 'resize';
-}
-
-const activateSaving = () => {
-  selectedSection.value = 'save';
-}
-
-const activateMoving = () => {
-  selectedSection.value = 'move';
-}
-
-const activatePicking = () => {
-  selectedSection.value = 'picker';
+// Активация разделов
+const selectSection = (value) => {
+  if (selectedSection.value === 'move') {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    canvas.style.cursor = null;
+    drawImage();
+  }
+  selectedSection.value = value;
 }
 
 // Обработчик движения мыши
@@ -487,7 +485,7 @@ const saveImage = () => {
 
 // Обработчик нажатия кнопки мыши (захват изображения)
 const handleDragMouseDown = (event: MouseEvent) => {
-  if (selectedSection.value === 'move') {
+  if (selectedSection.value === 'move' ) {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
     console.log('work')
@@ -528,9 +526,25 @@ const handleDragMouseUp = () => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
     isDragging.value = false;
-    canvas.style.cursor = "default";
+    canvas.style.cursor = null;
   }
 };
+
+// Обработчик нажатия клавиши `
+const handleAltKeyDown = (event) => {
+  if (event.keyCode === 192 && helpLabelsActive.value === 0) {
+    helpLabelsActive.value = 1;
+    document.body.style.cursor = "help";
+  }
+}
+
+// Обработчик отпускания клавиши `
+const handleAltKeyUp = (event) => {
+  if (event.keyCode === 192) {
+    helpLabelsActive.value = 0;
+    document.body.style.cursor = null;
+  }
+}
 
 
 
@@ -546,6 +560,11 @@ onMounted(() => {
   canvas.addEventListener('mouseup', handleDragMouseUp);
   canvas.addEventListener('mouseleave', handleDragMouseUp);
   // ====
+
+  // Модификатор-помощник
+  window.addEventListener('keydown', handleAltKeyDown)
+  window.addEventListener('keyup', handleAltKeyUp)
+  // ====================
   resizeCanvas();
 });
 
@@ -561,6 +580,10 @@ onUnmounted(() => {
   canvas.removeEventListener('mouseup', handleDragMouseUp);
   canvas.removeEventListener('mouseleave', handleDragMouseUp);
   // ====
+  // Модификатор-помощник
+  window.removeEventListener('keydown', handleAltKeyDown)
+  window.removeEventListener('keyup', handleAltKeyUp)
+  // ====================
 });
 
 </script>
