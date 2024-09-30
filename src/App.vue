@@ -199,6 +199,8 @@ const imageUploaded = ref(0);
 
 const helpLabelsActive = ref(0); // Модификатор для tooltip's
 
+const movingActive = ref(false); // Модификатор для move
+
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
     newHeight.value = Math.round((newWidth.value * imgHeight.value) / imgWidth.value);
@@ -485,7 +487,7 @@ const saveImage = () => {
 
 // Обработчик нажатия кнопки мыши (захват изображения)
 const handleDragMouseDown = (event: MouseEvent) => {
-  if (selectedSection.value === 'move' ) {
+  if (selectedSection.value === 'move' || movingActive.value) {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
     console.log('work')
@@ -500,7 +502,7 @@ const handleDragMouseDown = (event: MouseEvent) => {
 const handleDragMouseMove = (event: MouseEvent) => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
-  if (selectedSection.value === 'move' && !isDragging.value) {
+  if ((selectedSection.value === 'move' || movingActive.value) && !isDragging.value) {
     canvas.style.cursor = "grab";
   }
   
@@ -529,6 +531,24 @@ const handleDragMouseUp = () => {
     canvas.style.cursor = null;
   }
 };
+
+// Обработчик нажатия клавиши space
+const handleSpaceKeyDown = (event) => {
+  if (event.keyCode === 32 && !movingActive.value && selectedSection.value !== 'move' && imageUploaded.value) {
+    movingActive.value = true;
+  }
+}
+
+// Обработчик отпускания клавиши space
+const handleSpaceKeyUp = (event) => {
+  if (event.keyCode === 32 && selectedSection.value !== 'move' && imageUploaded.value) {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+    isDragging.value = false;
+    movingActive.value = false;
+    canvas.style.cursor = null;
+  }
+}
 
 // Обработчик нажатия клавиши `
 const handleAltKeyDown = (event) => {
@@ -565,6 +585,11 @@ onMounted(() => {
   window.addEventListener('keydown', handleAltKeyDown)
   window.addEventListener('keyup', handleAltKeyUp)
   // ====================
+
+  // Модификатор-рука
+  window.addEventListener('keydown', handleSpaceKeyDown)
+  window.addEventListener('keyup', handleSpaceKeyUp)
+  // ====================
   resizeCanvas();
 });
 
@@ -580,9 +605,15 @@ onUnmounted(() => {
   canvas.removeEventListener('mouseup', handleDragMouseUp);
   canvas.removeEventListener('mouseleave', handleDragMouseUp);
   // ====
+
   // Модификатор-помощник
   window.removeEventListener('keydown', handleAltKeyDown)
   window.removeEventListener('keyup', handleAltKeyUp)
+  // ====================
+
+  // Модификатор-рука
+  window.removeEventListener('keydown', handleSpaceKeyDown)
+  window.removeEventListener('keyup', handleSpaceKeyUp)
   // ====================
 });
 
