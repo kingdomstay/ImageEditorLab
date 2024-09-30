@@ -21,16 +21,24 @@
           <span>Курсор</span>
         </el-menu-item>
         <el-menu-item index="3" @click="activateZooming">
-          <el-icon><search /></el-icon>
+          <el-icon><zoomIn /></el-icon>
           <span>Масштабирование</span>
         </el-menu-item>
         <el-menu-item index="4" @click="activateResizing">
-          <el-icon><operation /></el-icon>
+          <el-icon><crop /></el-icon>
           <span>Изменение изображения</span>
         </el-menu-item>
         <el-menu-item index="5" @click="activateSaving">
-          <el-icon><upload /></el-icon>
+          <el-icon><download /></el-icon>
           <span>Сохранение</span>
+        </el-menu-item>
+        <el-menu-item index="6" @click="activateMoving">
+          <el-icon><rank /></el-icon>
+          <span>Перемещение</span>
+        </el-menu-item>
+        <el-menu-item index="7" @click="activatePicking">
+          <el-icon><stamp /></el-icon>
+          <span>Пипетка</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -175,96 +183,96 @@ const selectedSection = ref(null);
 const cursorPosition = ref({ x: -1, y: -1 });
 const pixelColor = ref({r: 0, g: 0, b: 0, a: 0})
 const resizeMode = ref('percent');
-    const newWidth = ref(100);
-    const newHeight = ref(100);
-    const maintainAspectRatio = ref(true);
-    const originalPixels = ref(0);
-    const newPixels = ref(0);
-    const interpolationMethod = ref('nearest');
+const newWidth = ref(100);
+const newHeight = ref(100);
+const maintainAspectRatio = ref(true);
+const originalPixels = ref(0);
+const newPixels = ref(0);
+const interpolationMethod = ref('nearest');
 
-    const toggleAspectRatio = () => {
-      if (maintainAspectRatio.value) {
-        newHeight.value = Math.round((newWidth.value * imgHeight.value) / imgWidth.value);
-      }
-    };
+const toggleAspectRatio = () => {
+  if (maintainAspectRatio.value) {
+    newHeight.value = Math.round((newWidth.value * imgHeight.value) / imgWidth.value);
+  }
+};
 
-    const updateFields = () => {
-      if (resizeMode.value === 'percent') {
-        newWidth.value = 100;
-        newHeight.value = 100;
-      }
-    };
+const updateFields = () => {
+  if (resizeMode.value === 'percent') {
+    newWidth.value = 100;
+    newHeight.value = 100;
+  }
+};
 
-    const confirmResize = () => {
-      if (resizeMode.value === 'percent' && (newWidth.value <= 0 || newHeight.value <= 0)) {
-        alert('Введите допустимое значение для ширины и высоты.');
-        return;
-      }
+const confirmResize = () => {
+  if (resizeMode.value === 'percent' && (newWidth.value <= 0 || newHeight.value <= 0)) {
+    alert('Введите допустимое значение для ширины и высоты.');
+    return;
+  }
 
-      let scaleX = resizeMode.value === 'percent' ? newWidth.value / 100 : newWidth.value / imgWidth.value;
-      let scaleY = resizeMode.value === 'percent' ? newHeight.value / 100 : newHeight.value / imgHeight.value;
+  let scaleX = resizeMode.value === 'percent' ? newWidth.value / 100 : newWidth.value / imgWidth.value;
+  let scaleY = resizeMode.value === 'percent' ? newHeight.value / 100 : newHeight.value / imgHeight.value;
 
-      if (maintainAspectRatio.value) {
-        const aspectRatio = imgWidth.value / imgHeight.value;
-        if (scaleX > scaleY) {
-          scaleX = scaleY;
-          newWidth.value = Math.round(imgWidth.value * scaleX);
-        } else {
-          scaleY = scaleX;
-          newHeight.value = Math.round(imgHeight.value * scaleY);
-        }
-      }
+  if (maintainAspectRatio.value) {
+    const aspectRatio = imgWidth.value / imgHeight.value;
+    if (scaleX > scaleY) {
+      scaleX = scaleY;
+      newWidth.value = Math.round(imgWidth.value * scaleX);
+    } else {
+      scaleY = scaleX;
+      newHeight.value = Math.round(imgHeight.value * scaleY);
+    }
+  }
 
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
-      const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value);
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value);
 
-      const resizedImageData = resizeNearestNeighbor(srcImageData, newWidth.value, newHeight.value);
+  const resizedImageData = resizeNearestNeighbor(srcImageData, newWidth.value, newHeight.value);
 
-      const newCanvas = document.createElement('canvas');
-      const newCtx = newCanvas.getContext('2d');
-      newCanvas.width = newWidth.value;
-      newCanvas.height = newHeight.value;
-      newCtx.putImageData(resizedImageData, 0, 0);
+  const newCanvas = document.createElement('canvas');
+  const newCtx = newCanvas.getContext('2d');
+  newCanvas.width = newWidth.value;
+  newCanvas.height = newHeight.value;
+  newCtx.putImageData(resizedImageData, 0, 0);
 
-      imgRef.value = new Image();
-      imgRef.value.src = newCanvas.toDataURL();
-      imgRef.value.onload = () => {
-        drawImage();
-      };
+  imgRef.value = new Image();
+  imgRef.value.src = newCanvas.toDataURL();
+  imgRef.value.onload = () => {
+    drawImage();
+  };
 
-      newPixels.value = (newWidth.value * newHeight.value) / 1000000;
-    };
+  newPixels.value = (newWidth.value * newHeight.value) / 1000000;
+};
 
-    const resizeNearestNeighbor = (srcImageData, width, height) => {
-      const srcPixels = srcImageData.data;
-      const srcWidth = srcImageData.width;
-      const srcHeight = srcImageData.height;
-      const dstImageData = new ImageData(width, height);
-      const dstPixels = dstImageData.data;
+const resizeNearestNeighbor = (srcImageData, width, height) => {
+  const srcPixels = srcImageData.data;
+  const srcWidth = srcImageData.width;
+  const srcHeight = srcImageData.height;
+  const dstImageData = new ImageData(width, height);
+  const dstPixels = dstImageData.data;
 
-      const xFactor = srcWidth / width;
-      const yFactor = srcHeight / height;
+  const xFactor = srcWidth / width;
+  const yFactor = srcHeight / height;
 
-      let dstIndex = 0;
-      let srcIndex, offset;
+  let dstIndex = 0;
+  let srcIndex, offset;
 
-      for (let y = 0; y < height; y++) {
-        offset = ((y * yFactor) | 0) * srcWidth;
+  for (let y = 0; y < height; y++) {
+    offset = ((y * yFactor) | 0) * srcWidth;
 
-        for (let x = 0; x < width; x++) {
-          srcIndex = (offset + x * xFactor) << 2;
+    for (let x = 0; x < width; x++) {
+      srcIndex = (offset + x * xFactor) << 2;
 
-          dstPixels[dstIndex] = srcPixels[srcIndex];
-          dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
-          dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
-          dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
-          dstIndex += 4;
-        }
-      }
+      dstPixels[dstIndex] = srcPixels[srcIndex];
+      dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+      dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+      dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
+      dstIndex += 4;
+    }
+  }
 
-      return dstImageData;
-    };
+  return dstImageData;
+};
 
 // Опции для выбора масштаба
 const scaleOptions = ref([12, 25, 50, 75, 100, 150, 200, 250, 300]);
@@ -369,6 +377,14 @@ const activateResizing = () => {
 
 const activateSaving = () => {
   selectedSection.value = 'save';
+}
+
+const activateMoving = () => {
+  selectedSection.value = 'move';
+}
+
+const activatePicking = () => {
+  selectedSection.value = 'picker';
 }
 
 // Обработчик движения мыши
