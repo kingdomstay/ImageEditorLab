@@ -330,6 +330,12 @@
         >
           <el-button style="display: block; width: 100%;" @click="changeColorFormat">Сменить цветовое пространство</el-button>
         </el-tooltip>
+        
+        <el-divider/>
+        <el-text size="large" style="display: block;">Расчёт контрастности цвета</el-text>
+        <el-text type="info" v-if="firstPixelColor.r == -1 || secondPixelColor.r == -1">Сперва выберите два цвета</el-text>
+        <el-button v-if="firstPixelColor.r != -1 && secondPixelColor.r != -1" style="display: block; width: 100%;" @click="getContrastRatio(firstPixelColor, secondPixelColor)">Рассчитать контрастность</el-button>
+        <el-text style="display: block;" v-if="contrastRatio != -1"><span style="color: #9D3C3C" v-if="contrastRatio < 4.5">Контраст недостаточен ({{ contrastRatio.toFixed(2) }}:1)</span><span style="color: #419D3C;" v-else>Контрастность достаточна ({{ contrastRatio.toFixed(2) }}:1)</span></el-text>
       </el-form>
 
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
@@ -373,12 +379,13 @@ const helpLabelsActive = ref(0); // Модификатор для tooltip's
 const movingActive = ref(false); // Модификатор для move
 
 const firstCursorPosition = ref({x: -1, y: -1});
-const firstPixelColor = ref({r: 0, g: 0, b: 0, a: 0});
+const firstPixelColor = ref({r: -1, g: -1, b: -1, a: -1});
 const secondCursorPosition = ref({x: -1, y: -1});
-const secondPixelColor = ref({r: 0, g: 0, b: 0, a: 0});
+const secondPixelColor = ref({r: -1, g: -1, b: -1, a: -1});
 const pickerActive = ref(false);
 const altPickerActive = ref(false);
 const selectedFormat = ref('XYZ');
+const contrastRatio = ref(-1);
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
@@ -790,6 +797,31 @@ const xyzToLab = (xyz) => {
   const b = 200 * (y - z)
 
   return { l, a, b }
+}
+
+// Функция для расчета относительной яркости
+function getLuminance(r, g, b) {
+  const [R, G, B] = [r, g, b].map(value => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : Math.pow((normalized + 0.055) / 1.055, 2.4);
+  });
+
+  // Формула относительной яркости
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+// Функция для расчета контраста между двумя цветами
+function getContrastRatio(color1, color2) {
+  const luminance1 = getLuminance(color1.r, color1.g, color1.b);
+  const luminance2 = getLuminance(color2.r, color2.g, color2.b);
+
+  // Более светлый цвет делим на более темный
+  const lighter = Math.max(luminance1, luminance2);
+  const darker = Math.min(luminance1, luminance2);
+
+  contrastRatio.value = (lighter + 0.05) / (darker + 0.05);
 }
 
 const changeColorFormat = () => {
