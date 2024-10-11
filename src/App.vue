@@ -457,20 +457,14 @@ const saveImage = () => {
   const saveCtx = saveCanvas.getContext('2d');
 
   // Устанавливаем размеры нового canvas
-  saveCanvas.width = imgRenderedWidth.value;  // Ширина сохраняемой области
-  saveCanvas.height = imgRenderedHeight.value; // Высота сохраняемой области
+  saveCanvas.width = imgRef.value.width;  // Ширина сохраняемой области
+  saveCanvas.height = imgRef.value.height; // Высота сохраняемой области
 
   // Копируем область изображения на новый canvas
   saveCtx?.drawImage(
     imgRef.value,
     0,
-    0,
-    imgRef.value.width,
-    imgRef.value.height,
-    0,
-    0,
-    imgRenderedWidth.value,
-    imgRenderedHeight.value
+    0
   );
 
   // Получаем данные изображения в формате PNG
