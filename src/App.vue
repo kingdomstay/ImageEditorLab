@@ -171,20 +171,61 @@
           <el-text size="large" style="padding-bottom: 1rem;">Первый цвет</el-text>
 
           <div class="color-preview" :style="{backgroundColor: `rgba(${firstPixelColor.r},${firstPixelColor.g},${firstPixelColor.b},${firstPixelColor.a})`}"></div>
-          <el-input readonly
+          <!-- RGB -->
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="firstPixelColor.r? firstPixelColor.r: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>R</template>
           </el-input>
-          <el-input readonly
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="firstPixelColor.g? firstPixelColor.g: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>G</template>
           </el-input>
-          <el-input readonly
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="firstPixelColor.b? firstPixelColor.b: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>B</template>
+          </el-input>
+
+          <!-- XYZ -->
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="firstPixelColor.r? rgbToXyz(firstPixelColor).x: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>X</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="firstPixelColor.g? rgbToXyz(firstPixelColor).y: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Y</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="firstPixelColor.b? rgbToXyz(firstPixelColor).z: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Z</template>
+          </el-input>
+
+          <!-- LAB -->
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="firstPixelColor.r? xyzToLab(rgbToXyz(firstPixelColor)).l: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>L</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="firstPixelColor.g? xyzToLab(rgbToXyz(firstPixelColor)).a: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>A</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="firstPixelColor.b? xyzToLab(rgbToXyz(firstPixelColor)).b: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>B</template>
@@ -207,20 +248,61 @@
           <el-text size="large" style="margin-bottom: 1rem;">Второй цвет</el-text>
 
           <div class="color-preview" :style="{backgroundColor: `rgba(${secondPixelColor.r},${secondPixelColor.g},${secondPixelColor.b},${secondPixelColor.a})`}"></div>
-          <el-input readonly
+          <!-- RGB -->
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="secondPixelColor.r? secondPixelColor.r: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>R</template>
           </el-input>
-          <el-input readonly
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="secondPixelColor.g? secondPixelColor.g: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>G</template>
           </el-input>
-          <el-input readonly
+          <el-input readonly v-if="selectedFormat === 'RGB'"
                     :model-value="secondPixelColor.b? secondPixelColor.b: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>B</template>
+          </el-input>
+
+          <!-- XYZ -->
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="secondPixelColor.r? rgbToXyz(secondPixelColor).x: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>X</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="secondPixelColor.g? rgbToXyz(secondPixelColor).y: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Y</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'XYZ'"
+                    :model-value="secondPixelColor.b? rgbToXyz(secondPixelColor).z: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Z</template>
+          </el-input>
+
+          <!-- LAB -->
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="secondPixelColor.r? xyzToLab(rgbToXyz(secondPixelColor)).l: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>L</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="secondPixelColor.g? xyzToLab(rgbToXyz(secondPixelColor)).a: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>A</template>
+          </el-input>
+          <el-input readonly v-if="selectedFormat === 'LAB'"
+                    :model-value="secondPixelColor.b? xyzToLab(rgbToXyz(secondPixelColor)).b: 0"
                     placeholder="Нет данных"
           >
             <template class="minified-input-label" #prepend>B</template>
@@ -238,6 +320,16 @@
             <template class="minified-input-label" #prepend>Y</template>
           </el-input>
         </el-form-item>
+
+        <el-tooltip
+        class="box-item"
+        effect="dark"
+        content="R, G, B — значения от 0 до 255<br/>X (0-95), Y (0-100), Z (0-108)<br/>L (0-100), a (-128 до 128), b (-128 до 128)"
+        placement="bottom"
+        raw-content
+        >
+          <el-button style="display: block; width: 100%;" @click="changeColorFormat">Сменить цветовое пространство</el-button>
+        </el-tooltip>
       </el-form>
 
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
@@ -286,6 +378,7 @@ const secondCursorPosition = ref({x: -1, y: -1});
 const secondPixelColor = ref({r: 0, g: 0, b: 0, a: 0});
 const pickerActive = ref(false);
 const altPickerActive = ref(false);
+const selectedFormat = ref('XYZ');
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
@@ -630,6 +723,88 @@ const handleClickPicker = () => {
     firstPixelColor.value = pixelColor.value;
     firstCursorPosition.value = cursorPosition.value;
     return;
+  }
+}
+
+//// Функции для обработки цветовых палитр
+const rgbToXyz = (rgb) => {
+  let r = rgb.r / 255
+  let g = rgb.g / 255
+  let b = rgb.b / 255
+
+  if (r > 0.04045) {
+    r = Math.pow(((r + 0.055) / 1.055), 2.4)
+  } else {
+    r = r / 12.92
+  }
+
+  if (g > 0.04045) {
+    g = Math.pow(((g + 0.055) / 1.055), 2.4)
+  } else {
+    g = g / 12.92
+  }
+
+  if (b > 0.04045) {
+    b = Math.pow(((b + 0.055) / 1.055), 2.4)
+  } else {
+    b = b / 12.92
+  }
+
+  r *= 100
+  g *= 100
+  b *= 100
+
+  // Observer = 2°, Illuminant = D65
+  const x = r * 0.4124 + g * 0.3576 + b * 0.1805
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722
+  const z = r * 0.0193 + g * 0.1192 + b * 0.9505
+
+  return { x, y, z}
+}
+const xyzToLab = (xyz) => {
+  // Observer = 2°, Illuminant = D65
+  let x = xyz.x / 95.047
+  let y = xyz.y / 100.000
+  let z = xyz.z / 108.883
+
+  if (x > 0.008856) {
+    x = Math.pow(x, 0.333333333)
+  } else {
+    x = 7.787 * x + 0.137931034
+  }
+
+  if (y > 0.008856) {
+    y = Math.pow(y, 0.333333333)
+  } else {
+    y = 7.787 * y + 0.137931034
+  }
+
+  if (z > 0.008856) {
+    z = Math.pow(z, 0.333333333)
+  } else {
+    z = 7.787 * z + 0.137931034
+  }
+
+  const l = (116 * y) - 16
+  const a = 500 * (x - y)
+  const b = 200 * (y - z)
+
+  return { l, a, b }
+}
+
+const changeColorFormat = () => {
+  switch (selectedFormat.value) {
+    case "RGB":
+      selectedFormat.value = "XYZ";
+      break;
+    
+    case "XYZ":
+      selectedFormat.value = "LAB";
+      break;
+    
+    default:
+      selectedFormat.value = "RGB";
+      break;
   }
 }
 
