@@ -165,6 +165,81 @@
         <el-text size="large">Зажмите левую клавишу, чтобы начать перемещение курсором</el-text>
       </el-empty>
 
+      <el-form v-if="selectedSection === 'picker'">
+        <el-text size="large" style="margin-bottom: 1rem;">Инструмент "Пипетка"</el-text>
+        <el-form-item>
+          <el-text size="large" style="padding-bottom: 1rem;">Первый цвет</el-text>
+
+          <div class="color-preview" :style="{backgroundColor: `rgba(${firstPixelColor.r},${firstPixelColor.g},${firstPixelColor.b},${firstPixelColor.a})`}"></div>
+          <el-input readonly
+                    :model-value="firstPixelColor.r? firstPixelColor.r: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>R</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="firstPixelColor.g? firstPixelColor.g: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>G</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="firstPixelColor.b? firstPixelColor.b: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>B</template>
+          </el-input>
+          <el-input readonly
+              :model-value="firstCursorPosition.x >= 0? firstCursorPosition.x + ' px': undefined"
+              placeholder="Нет данных" style="margin-top: 0.5rem;"
+          >
+            <template class="minified-input-label" #prepend>X</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="firstCursorPosition.y >= 0? firstCursorPosition.y + ' px': undefined"
+              placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Y</template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item>
+          <el-text size="large" style="margin-bottom: 1rem;">Второй цвет</el-text>
+
+          <div class="color-preview" :style="{backgroundColor: `rgba(${secondPixelColor.r},${secondPixelColor.g},${secondPixelColor.b},${secondPixelColor.a})`}"></div>
+          <el-input readonly
+                    :model-value="secondPixelColor.r? secondPixelColor.r: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>R</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="secondPixelColor.g? secondPixelColor.g: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>G</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="secondPixelColor.b? secondPixelColor.b: 0"
+                    placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>B</template>
+          </el-input>
+          <el-input readonly
+              :model-value="secondCursorPosition.x >= 0? secondCursorPosition.x + ' px': undefined"
+              placeholder="Нет данных" style="margin-top: 0.5rem;"
+          >
+            <template class="minified-input-label" #prepend>X</template>
+          </el-input>
+          <el-input readonly
+                    :model-value="secondCursorPosition.y >= 0? secondCursorPosition.y + ' px': undefined"
+              placeholder="Нет данных"
+          >
+            <template class="minified-input-label" #prepend>Y</template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
         <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
         <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
@@ -204,6 +279,13 @@ const imageUploaded = ref(0);
 const helpLabelsActive = ref(0); // Модификатор для tooltip's
 
 const movingActive = ref(false); // Модификатор для move
+
+const firstCursorPosition = ref({x: -1, y: -1});
+const firstPixelColor = ref({r: 0, g: 0, b: 0, a: 0});
+const secondCursorPosition = ref({x: -1, y: -1});
+const secondPixelColor = ref({r: 0, g: 0, b: 0, a: 0});
+const pickerActive = ref(false);
+const altPickerActive = ref(false);
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
@@ -421,7 +503,13 @@ const handleMouseMove = (event: MouseEvent) => {
     const pixelData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
     //pixelColor.value = `rgba(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]}, ${pixelData[3] / 255})`;
     pixelColor.value = {r: pixelData[0], g: pixelData[1], b: pixelData[2], a: pixelData[3] / 255}
+
+    // Если инструмент пипетки активен
+    if (selectedSection.value === 'picker') {
+      pickerActive.value = true;
+    }
   } else {
+    pickerActive.value = false;
     cursorPosition.value = { x: -1, y: -1 };
     pixelColor.value = {r: 0, g: 0, b: 0, a: 1}
   }
@@ -532,7 +620,18 @@ const handleDragMouseUp = () => {
 
 
 //// Инструмент пипетка
-
+const handleClickPicker = () => {
+  if (pickerActive.value && altPickerActive.value && (cursorPosition.value.x >= 0 || cursorPosition.value.y >= 0)) {
+    secondPixelColor.value = pixelColor.value;
+    secondCursorPosition.value = cursorPosition.value;
+    return;
+  }
+  if (pickerActive.value && (cursorPosition.value.x >= 0 || cursorPosition.value.y >= 0)) {
+    firstPixelColor.value = pixelColor.value;
+    firstCursorPosition.value = cursorPosition.value;
+    return;
+  }
+}
 
 //// Горячие клавиши
 
@@ -570,13 +669,26 @@ const handleAltKeyUp = (event) => {
   }
 }
 
+// Обработчик нажатия клавиши Left Alt
+const handleLeftAltKeyDown = (event) => {
+  if ((event.altKey || event.ctrlKey || event.shiftKey) && !altPickerActive.value) {
+    altPickerActive.value = true;
+  }
+}
 
+// Обработчик отпускания клавиши Left Alt
+const handleLeftAltKeyUp = (event) => {
+  if (altPickerActive) {
+    altPickerActive.value = false;
+  }
+}
 
 onMounted(() => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   window.addEventListener('resize', resizeCanvas);
   canvas.addEventListener('wheel', handleWheel);
   canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener('click', handleClickPicker);
   
   // Рука
   canvas.addEventListener('mousedown', handleDragMouseDown);
@@ -594,6 +706,10 @@ onMounted(() => {
   window.addEventListener('keydown', handleSpaceKeyDown)
   window.addEventListener('keyup', handleSpaceKeyUp)
   // ====================
+
+  // Модификатор-пипетка
+  window.addEventListener('keydown', handleLeftAltKeyDown)
+  window.addEventListener('keyup', handleLeftAltKeyUp)
   resizeCanvas();
 });
 
@@ -602,6 +718,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', resizeCanvas);
   canvas.removeEventListener('wheel', handleWheel);
   canvas.removeEventListener('mousemove', handleMouseMove);
+  canvas.removeEventListener('click', handleClickPicker);
 
   // Рука
   canvas.removeEventListener('mousedown', handleDragMouseDown);
@@ -619,6 +736,10 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleSpaceKeyDown)
   window.removeEventListener('keyup', handleSpaceKeyUp)
   // ====================
+
+  // Модификатор-пипетка
+  window.removeEventListener('keydown', handleLeftAltKeyDown)
+  window.removeEventListener('keyup', handleLeftAltKeyUp)
 });
 
 </script>
