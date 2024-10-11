@@ -113,58 +113,62 @@
         </el-form-item>
       </el-form>
       <el-form v-if="selectedSection === 'resize'" label-position="top">
-    <el-form-item>
-      <el-text size="large" style="padding-bottom: 1rem;">Изменение размера изображения</el-text>
-    </el-form-item>
-    
-    <el-form-item>
-      <el-text>Общее количество пикселей: {{ originalPixels }} MP (до) / {{ newPixels }} MP (после)</el-text>
-    </el-form-item>
-
-    <el-form-item label="Режим изменения размера">
-      <el-select v-model="resizeMode" @change="updateFields">
-        <el-option label="Процент" value="percent"></el-option>
-        <el-option label="Пиксели" value="pixels"></el-option>
-      </el-select>
-    </el-form-item>
-
-    <el-form-item label="Новая ширина">
-      <el-input v-model="newWidth" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Ширина (пиксели)'" />
-    </el-form-item>
-    
-    <el-form-item label="Новая высота">
-      <el-input v-model="newHeight" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Высота (пиксели)'" />
-    </el-form-item>
-
-    <el-form-item>
-      <el-checkbox v-model="maintainAspectRatio" @change="toggleAspectRatio" class="aspect-ratio-checkbox">
-        <span>Сохранить пропорции</span>
-      </el-checkbox>
-    </el-form-item>
-
-    <el-form-item label="Алгоритм интерполяции">
-      <el-select v-model="interpolationMethod">
-        <el-option label="Ближайший сосед" value="nearest" />
-      </el-select>
-      <el-tooltip effect="dark" content="Алгоритм ближайшего соседа используется для быстрого уменьшения изображения без сложных вычислений." style="margin-left: 10px;">
-        <el-button size="mini">?</el-button>
-      </el-tooltip>
-    </el-form-item>
-
-    <el-form-item>
-      <el-button type="primary" @click="confirmResize">Подтвердить</el-button>
-    </el-form-item>
-  </el-form>
-      <el-form v-if="selectedSection === 'save'">
         <el-form-item>
-          <el-text size="large" style="padding-bottom: 1rem;">Сохранение изображения</el-text>
-          <el-button @click="saveImage">Сохранить локально</el-button>
+          <el-text size="large" style="padding-bottom: 1rem;">Изменение размера изображения</el-text>
+        </el-form-item>
+        
+        <el-form-item>
+          <el-text>Общее количество пикселей: {{ originalPixels }} MP (до) / {{ newPixels }} MP (после)</el-text>
+        </el-form-item>
+
+        <el-form-item label="Режим изменения размера">
+          <el-select v-model="resizeMode" @change="updateFields">
+            <el-option label="Процент" value="percent"></el-option>
+            <el-option label="Пиксели" value="pixels"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Новая ширина">
+          <el-input v-model="newWidth" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Ширина (пиксели)'" />
+        </el-form-item>
+        
+        <el-form-item label="Новая высота">
+          <el-input v-model="newHeight" :placeholder="resizeMode === 'percent' ? 'Процент' : 'Высота (пиксели)'" />
+        </el-form-item>
+
+        <el-form-item>
+          <el-checkbox v-model="maintainAspectRatio" @change="toggleAspectRatio" class="aspect-ratio-checkbox">
+            <span>Сохранить пропорции</span>
+          </el-checkbox>
+        </el-form-item>
+
+        <el-form-item label="Алгоритм интерполяции">
+          <el-select v-model="interpolationMethod">
+            <el-option label="Ближайший сосед" value="nearest" />
+          </el-select>
+          <el-tooltip effect="dark" content="Алгоритм ближайшего соседа используется для быстрого уменьшения изображения без сложных вычислений." style="margin-left: 10px;">
+            <el-button size="mini">?</el-button>
+          </el-tooltip>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="confirmResize">Подтвердить</el-button>
         </el-form-item>
       </el-form>
+  
+      <el-empty v-if="selectedSection === 'save'" description=" ">
+        <el-text size="large">Сохранение изображения</el-text>
+        <el-button style="margin-top: 1rem;" @click="saveImage">Сохранить локально</el-button>
+      </el-empty>
+
+      <el-empty v-if="selectedSection === 'move'" description=" ">
+        <el-text size="large">Зажмите левую клавишу, чтобы начать перемещение курсором</el-text>
+      </el-empty>
+
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
-          <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
-          <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
-        </el-empty>
+        <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
+        <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
+      </el-empty>
     </el-aside>
   </el-container>
 </template>
@@ -525,6 +529,12 @@ const handleDragMouseUp = () => {
     canvas.style.cursor = null;
   }
 };
+
+
+//// Инструмент пипетка
+
+
+//// Горячие клавиши
 
 // Обработчик нажатия клавиши space
 const handleSpaceKeyDown = (event) => {
