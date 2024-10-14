@@ -472,6 +472,9 @@ const gradientCanvas = ref(null);
 const showCurvePreview = ref(false);
 const curveErrorMessage = ref(null);
 
+const imgCurvePreviewRenderedWidth = ref(0)
+const imgCurvePreviewRenderedHeight = ref(255);
+
 const curvePoints = ref({
   "enter": {
       "in": 0,
@@ -606,8 +609,10 @@ const buildRGBColorRows = (data, color) => {
     if (curvePoints.value.exit.in <= curvePoints.value.enter.in) {
       curvePoints.value.exit.in = 0;
       curveErrorMessage.value = 'Входное значение первой точки не может быть больше или равно входному значению второй';
+      return;
     }
     renderGradient();
+    renderTempImage();
   }
 
   const getTempImageData = () => {
@@ -644,21 +649,46 @@ const buildRGBColorRows = (data, color) => {
       newImageData[i + 3] = srcImageData[i + 3];
     }
 
-    const tempImageData = new ImageData(newImageData, imgWidth.value, imgHeight.value);
+    const tempImageData = new ImageData(newImageData, imgRef.value.width, imgRef.value.height);
     return tempImageData;
   }
 
-  const changeGammaCorrection = () => {
-    const tempCanvas = document.getElementById('tempCurveCanvas');
-    const tempCtx = canvas.getContext('2d', {
-      willReadFrequently: true,
+  const renderTempImage = () => {
+    const tempImageData = getTempImageData();
+
+    const canvas = document.getElementById('tempCurveCanvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
     });
 
-    tempCtx.width = 255;
-    tempCtx.height = 255;
+    const img = imgRef.value;
+
+    const imageAspectRatio = img.width / img.height;
+
+    const canvasAspectRatio = canvas.width / canvas.height;
+
+    if (imageAspectRatio > canvasAspectRatio) {
+      imgCurvePreviewRenderedWidth.value = canvas.width;
+      imgCurvePreviewRenderedHeight.value = imgCurvePreviewRenderedWidth.value / imageAspectRatio;
+    } else {
+      imgCurvePreviewRenderedHeight.value = canvas.height;
+      imgCurvePreviewRenderedWidth.value = imgCurvePreviewRenderedHeight.value * imageAspectRatio;
+    }
+
+    ctx.clearRect(0, 0, 255, 255);  // Очищаем canvas перед отрисовкой
+    createImageBitmap(tempImageData).then(renderer => {
+    ctx.drawImage(
+      renderer,
+      0,
+      0,
+      imgCurvePreviewRenderedWidth.value,
+      imgCurvePreviewRenderedHeight.value
+      );
+    })
     
-    const tempImageData = getTempImageData();
-    tempCtx?.putImageData(tempImageData, 0, 0);
+  }
+
+  const changeGammaCorrection = () => {
   }
 
 const toggleAspectRatio = () => {
@@ -703,7 +733,7 @@ const confirmResize = () => {
   const resizedImageData = resizeNearestNeighbor(srcImageData, newWidth.value, newHeight.value);
 
   const newCanvas = document.createElement('canvas');
-  const newCtx = newcanvas.getContext('2d', {
+  const newCtx = newCanvas.getContext('2d', {
       willReadFrequently: true
     });
   newCanvas.width = newWidth.value;
@@ -933,7 +963,7 @@ const saveImage = () => {
 
   // Создаём новый canvas для сохранения
   const saveCanvas = document.createElement('canvas');
-  const saveCtx = savecanvas.getContext('2d', {
+  const saveCtx = saveCanvas.getContext('2d', {
       willReadFrequently: true
     });
 
