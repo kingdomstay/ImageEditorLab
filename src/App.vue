@@ -42,6 +42,18 @@
             <span>Пипетка</span>
           </el-menu-item>
         </el-tooltip>
+        <el-tooltip effect="light" content="Инструмент коррекции градиента" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="8" @click="selectSection('gradient')" :disabled="!imageUploaded">
+            <el-icon><histogram /></el-icon>
+            <span>Кривые</span>
+          </el-menu-item>
+        </el-tooltip>
+        <el-tooltip effect="light" content="Инструмент фильтра" placement="right" :disabled="!helpLabelsActive">
+          <el-menu-item index="9" @click="selectSection('filter')" :disabled="!imageUploaded">
+            <el-icon><setting /></el-icon>
+            <span>Фильтр</span>
+          </el-menu-item>
+        </el-tooltip>
       </el-menu>
     </el-aside>
     <el-main style="padding: 0; background-color: var(--el-bg-color-overlay); position: relative;">
@@ -338,6 +350,75 @@
         <el-text style="display: block;" v-if="contrastRatio != -1"><span style="color: #9D3C3C" v-if="contrastRatio < 4.5">Контраст недостаточен ({{ contrastRatio.toFixed(2) }}:1)</span><span style="color: #419D3C;" v-else>Контрастность достаточна ({{ contrastRatio.toFixed(2) }}:1)</span></el-text>
       </el-form>
 
+      <el-form v-show="selectedSection === 'gradient'">
+        <el-text size="large" style="padding-bottom: 2rem;">Коррекция градиента</el-text>
+        <div style="margin-top: 1rem;">
+          <!-- background: #333333 -->
+          <canvas ref="gradientCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        </div>
+        <el-form-item style="margin-bottom: 0.5rem;">
+          <el-col :span="11">
+            <el-input-number
+              @change="changeCurvePoint"
+              v-model="curvePoints.enter.in"
+              :placeholder="'In'"
+              :min="0"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="11">
+            <el-input-number
+              @change="changeCurvePoint"
+              v-model="curvePoints.enter.out"
+              :placeholder="'Out'"
+              :min="0"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+        </el-form-item>
+        <el-form-item style="margin-bottom: 0;">
+          <el-col :span="11">
+            <el-input-number
+              @change="changeCurvePoint"
+              v-model="curvePoints.exit.in"
+              :placeholder="'In'"
+              :min="0"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="11">
+            <el-input-number
+              @change="changeCurvePoint"
+              v-model="curvePoints.exit.out"
+              :placeholder="'Out'"
+              :min="0"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+        </el-form-item>
+        <p v-if="curveErrorMessage">Ошибка: {{ curveErrorMessage }}</p>
+        <el-form-item>
+          <el-checkbox v-model="showCurvePreview" label="Показывать предпросмотр" size="large" />
+        </el-form-item>
+        <canvas v-show="showCurvePreview" id="tempCurveCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        <div style="margin-bottom: .25rem;">
+          <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
+        </div>
+        <div>
+          <el-button style="display: block; width: 100%;" type="primary" @click="changeGammaCorrection">Изменить</el-button>
+        </div>
+      </el-form>
+
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
         <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
         <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
@@ -387,6 +468,199 @@ const altPickerActive = ref(false);
 const selectedFormat = ref('XYZ');
 const contrastRatio = ref(-1);
 
+const gradientCanvas = ref(null);
+const showCurvePreview = ref(false);
+const curveErrorMessage = ref(null);
+
+const curvePoints = ref({
+  "enter": {
+      "in": 0,
+      "out": 0,
+    },
+    "exit": {
+      "in": 255,
+      "out": 255,
+    },
+});
+
+const renderGradient = () => {
+  const canvas = gradientCanvas.value;
+  canvas.width = 255;
+  canvas.height = 255;
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const colorsHistData = getColorsHistData();
+    buildColorRows(colorsHistData);
+    
+    ctx.beginPath();
+    
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "blue";
+    ctx.moveTo(0, 255);
+    ctx.lineTo(255, 0);
+    ctx.closePath();
+    ctx.stroke();
+    
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 255 - curvePoints.value.enter.out);
+    ctx.lineTo(curvePoints.value.enter.in, 255 - curvePoints.value.enter.out);
+    ctx.arc(curvePoints.value.enter.in, 255 - curvePoints.value.enter.out, 5, 0, 2 * Math.PI);
+    ctx.lineTo(curvePoints.value.exit.in, 255 - curvePoints.value.exit.out);
+    ctx.arc(curvePoints.value.exit.in, 255 - curvePoints.value.exit.out, 5, 0, 2 * Math.PI);
+    ctx.lineTo(255, 255 - curvePoints.value.exit.out);
+    ctx.stroke();
+}
+
+const getColorsHistData = () => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', {
+    willReadFrequently: true,
+  });
+  const srcData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value).data;
+  
+  const colorsHistData = {
+    "r": new Map(),
+    "g": new Map(),
+    "b": new Map(),
+  };
+  
+  for (let i = 0; i < srcData.length; i += 4) {
+    // Красный канал
+    if (colorsHistData["r"].has(srcData[i])) {
+      colorsHistData["r"].set(srcData[i], (colorsHistData["r"].get(srcData[i]) || 0) + 1);
+    } else {
+      colorsHistData["r"].set(srcData[i], 1); 
+    }
+    
+    // Зеленый канал
+    if (colorsHistData["g"].has(srcData[i + 1])) {
+      colorsHistData["g"].set(srcData[i + 1], (colorsHistData["g"].get(srcData[i + 1]) || 0) + 1);
+    } else {
+      colorsHistData["g"].set(srcData[i + 1], 1); 
+    }
+    
+    // Синий канал
+    if (colorsHistData["b"].has(srcData[i + 2])) {
+      colorsHistData["b"].set(srcData[i + 2], (colorsHistData["b"].get(srcData[i + 2]) || 0) + 1);
+    } else {
+      colorsHistData["b"].set(srcData[i + 2], 1); 
+    }
+  }
+  
+  console.log(colorsHistData);
+  return colorsHistData;
+};
+
+const buildRGBColorRows = (data, color) => {
+    const canvas = gradientCanvas.value;
+    const ctx = canvas.getContext('2d', {
+    willReadFrequently: true
+    });
+    const maxVal = Math.max(...data["r"].values(), ...data["g"].values(), ...data["b"].values());
+    if (color === "r") {
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.65)';
+    } else if (color === "g") {
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.65)';
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.65)';
+    }
+    for (let i of [...data[color].keys()].sort()) {
+
+      const h = Math.floor((data[color].get(i) || 0) * 256 / maxVal);
+      ctx.fillRect(i, canvas.height, 1, -h);
+    }
+  };
+
+  const buildColorRows = (data) => {
+    const canvas = gradientCanvas.value;
+    const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    buildRGBColorRows(data, "r");
+    buildRGBColorRows(data, "g");
+    buildRGBColorRows(data, "b");
+  };
+
+  const resetCurvePoints = () => {
+    curvePoints.value = {
+      "enter": {
+      "in": 0,
+      "out": 0,
+    },
+    "exit": {
+      "in": 255,
+      "out": 255,
+    },
+    }
+    changeCurvePoint();
+  }
+
+  const changeCurvePoint = () => {
+    curveErrorMessage.value = null;
+    if (curvePoints.value.exit.in <= curvePoints.value.enter.in) {
+      curvePoints.value.exit.in = 0;
+      curveErrorMessage.value = 'Входное значение первой точки не может быть больше или равно входному значению второй';
+    }
+    renderGradient();
+  }
+
+  const getTempImageData = () => {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', {
+      willReadFrequently: true,
+    });
+
+    const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRef.value.width, imgRef.value.height).data;
+    const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
+    
+    const x1 = curvePoints.value.enter.in;
+    const y1 = curvePoints.value.enter.out;
+    const x2 = curvePoints.value.exit.in;
+    const y2 = curvePoints.value.exit.out;
+
+    const a = (y2 - y1) / (x2 - x1);
+    const b = y1 - a * x1;
+
+    const changePixelGammaCorrection = (i) => {
+      if (srcImageData[i] <= x1) {
+        newImageData[i] = y1;
+      } else if (srcImageData[i] >= x2) {
+        newImageData[i] = y2;
+      } else {
+        newImageData[i] = a * srcImageData[i] + b;
+      }
+    };
+
+    for (let i = 0; i < newImageData.length; i += 4) {
+      changePixelGammaCorrection(i);
+      changePixelGammaCorrection(i + 1);
+      changePixelGammaCorrection(i + 2);
+      newImageData[i + 3] = srcImageData[i + 3];
+    }
+
+    const tempImageData = new ImageData(newImageData, imgWidth.value, imgHeight.value);
+    return tempImageData;
+  }
+
+  const changeGammaCorrection = () => {
+    const tempCanvas = document.getElementById('tempCurveCanvas');
+    const tempCtx = canvas.getContext('2d', {
+      willReadFrequently: true,
+    });
+
+    tempCtx.width = 255;
+    tempCtx.height = 255;
+    
+    const tempImageData = getTempImageData();
+    tempCtx?.putImageData(tempImageData, 0, 0);
+  }
+
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
     newHeight.value = Math.round((newWidth.value * imgHeight.value) / imgWidth.value);
@@ -421,13 +695,17 @@ const confirmResize = () => {
   }
 
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
   const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value);
 
   const resizedImageData = resizeNearestNeighbor(srcImageData, newWidth.value, newHeight.value);
 
   const newCanvas = document.createElement('canvas');
-  const newCtx = newCanvas.getContext('2d');
+  const newCtx = newcanvas.getContext('2d', {
+      willReadFrequently: true
+    });
   newCanvas.width = newWidth.value;
   newCanvas.height = newHeight.value;
   newCtx.putImageData(resizedImageData, 0, 0);
@@ -519,7 +797,9 @@ const uploadUrlImage = () => {
 
 const drawImage = (resetPosition = true) => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
   const img = imgRef.value;
   if (!ctx || !img) return;
 
@@ -572,12 +852,17 @@ const selectSection = (value) => {
     drawImage();
   }
   selectedSection.value = value;
+  if (selectedSection.value === 'gradient') {
+    renderGradient();
+  }
 }
 
 // Обработчик движения мыши
 const handleMouseMove = (event: MouseEvent) => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
   if (!ctx || !imgRef.value) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -641,12 +926,16 @@ const handleWheel = (event: WheelEvent) => {
 /// СОХРАНЕНИЕ
 const saveImage = () => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+    });
   if (!ctx || !imgRef.value) return;
 
   // Создаём новый canvas для сохранения
   const saveCanvas = document.createElement('canvas');
-  const saveCtx = saveCanvas.getContext('2d');
+  const saveCtx = savecanvas.getContext('2d', {
+      willReadFrequently: true
+    });
 
   // Устанавливаем размеры нового canvas
   saveCanvas.width = imgRef.value.width;  // Ширина сохраняемой области
