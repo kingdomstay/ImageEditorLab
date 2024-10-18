@@ -421,11 +421,7 @@
 
       <el-form v-show="selectedSection === 'filter'">
         <el-text size="large" style="padding-bottom: 2rem;">Инструмент Фильтр</el-text>
-        <div style="margin-top: 1rem;">
-          <!-- background: #333333 -->
-          <canvas ref="filterCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
-        </div>
-        <el-select v-model="filterPreset"  @change="updateFilter(filterPreset.value)">
+        <el-select v-model="filterPreset" style="margin: 1rem auto;" @change="updateFilter(filterPreset.value)">
           <el-option v-for="filter in filterPresets" :key="filter.id" :label="filter.label" :value="filter"></el-option>
         </el-select>
         <el-form-item style="margin-bottom: 0.5rem;">
@@ -436,6 +432,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -446,6 +443,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -456,6 +454,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
         </el-form-item>
@@ -467,6 +466,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -477,6 +477,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -487,6 +488,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
         </el-form-item>
@@ -498,6 +500,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -508,6 +511,7 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
           <el-col :span="1"></el-col>
@@ -518,18 +522,19 @@
               :max="255"
               controls-position="right"
               style="width: 100%;"
+              @change="renderFilterPreview"
             />
           </el-col>
         </el-form-item>
         <el-form-item>
-          <el-checkbox v-model="showCurvePreview" label="Показывать предпросмотр" size="large" />
+          <el-checkbox v-model="showFilterPreview" @change="renderFilterPreview" label="Показывать предпросмотр" size="large" />
         </el-form-item>
-        <canvas v-show="showCurvePreview" id="tempCurveCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        <canvas v-show="showFilterPreview" id="tempFilterCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
         <div style="margin-bottom: .25rem;">
-          <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
+          <el-button style="display: block; width: 100%;" @click="resetFilter">Сбросить</el-button>
         </div>
         <div>
-          <el-button style="display: block; width: 100%;" type="primary" @click="downloadFullSizeImage">Изменить</el-button>
+          <el-button style="display: block; width: 100%;" type="primary" @click="applyFilter">Применить</el-button>
         </div>
       </el-form>
 
@@ -629,9 +634,158 @@ const filterPresets = ref([{
 }]);
 
 const filterValue = ref([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+const showFilterPreview = ref(false);
+
+/// Утилиты для фильтра
+const arrayToMatrix = (array: number[]) => {
+  let matrix = [
+    [...array.slice(0, 3)],
+    [...array.slice(3, 6)],
+    [...array.slice(6, 9)],
+  ]
+  if (JSON.stringify(array) == JSON.stringify([1, 2, 1, 2, 4, 2, 1, 2, 1])) {
+    matrix = matrix.map((el) => el.map((e) => e / 16)); 
+  }
+  if (JSON.stringify(array) == JSON.stringify([1, 1, 1, 1, 1, 1, 1, 1, 1])) {
+    matrix = matrix.map((el) => el.map((e) => e / 9)); 
+  }
+  return matrix; 
+}
+
+const makeFilteredData = () => {
+  const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', {
+      willReadFrequently: true,
+    });
+
+    scalePercentage.value = 100;
+  
+    updateScale();
+
+    const canvasImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRef.value.width, imgRef.value.height);
+    const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
+
+    let kernel = arrayToMatrix(filterValue.value);
+    
+    const height = imgRef.value.height;
+    const width = imgRef.value.width;
+
+    const srcData = canvasImageData.data;
+
+    let imageMatrix = makeImageMatrix(srcData, width);
+    imageMatrix = edgeMatrixPrepare(imageMatrix, width, height);
+
+    let pos = 0;
+    for (let y = 2; y <= height + 1; y++) {
+      for (let x = 8; x <= width * 4 + 4; x+=4) {
+        let R = 0;
+        let G = 0;
+        let B = 0;
+        for (let s = -1; s <= 1; s++) {
+          for (let t = -1; t <= 1; t++) {
+            R += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 3 + s * 4];
+            G += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 2 + s * 4];
+            B += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 1 + s * 4];
+          }
+        }
+        newImageData[pos] = R;
+        newImageData[pos + 1] = G;
+        newImageData[pos + 2] = B;
+        newImageData[pos + 3] = 255;  
+        pos += 4;
+      }
+    }
+    const tempImageData = new ImageData(newImageData, canvasImageData.width, canvasImageData.height);
+
+    return tempImageData;
+  }
+
+  const makeImageMatrix = (srcData: Uint8ClampedArray, width: number) => {
+  if (!srcData || srcData.length === 0) {
+    console.error('srcData is undefined or empty.');
+    return [];
+  }
+
+  let imageMatrix: number[][] = [];
+
+  for (let y = 1; y <= srcData.length / (width * 4); y++) {
+    imageMatrix[y] = [];
+    let x = 1;
+    for (let i = width * 4 * (y - 1); i < width * 4 * y; i++) {
+      imageMatrix[y][x] = srcData[i];
+      x += 1;
+    }
+  }
+  
+  return imageMatrix;
+}
+
+
+
+const edgeMatrixPrepare = (imageMatrix: number[][], width: number, height: number) => {
+  width = width * 4;
+  let newImageMatrix: number[][] = [];
+
+  for (let y = 1; y <= height + 2; y++) {
+      newImageMatrix[y] = [];
+  }
+
+  function setRGBA(x1: number, y1: number, x2: number, y2: number) {
+      newImageMatrix[y1][x1 - 3] = newImageMatrix[y2][x2 - 3];
+      newImageMatrix[y1][x1 - 2] = newImageMatrix[y2][x2 - 2];
+      newImageMatrix[y1][x1 - 1] = newImageMatrix[y2][x2 - 1];
+      newImageMatrix[y1][x1] = newImageMatrix[y2][x2];
+  }
+
+  for (let y = 1; y <= height; y++) {
+  for (let x = 4; x <= width; x+=4) {
+          newImageMatrix[y + 1][x - 3 + 4] = imageMatrix[y][x - 3];
+          newImageMatrix[y + 1][x - 2 + 4] = imageMatrix[y][x - 2];
+          newImageMatrix[y + 1][x - 1 + 4] = imageMatrix[y][x - 1];
+          newImageMatrix[y + 1][x + 4] = imageMatrix[y][x];            
+      }
+  }
+  for (let x = 8; x <= width + 4; x+=4) {
+      setRGBA(x, 1, x, 2);
+  }
+  for (let x = 8; x <= width + 4; x+=4) {
+      setRGBA(x, height + 2, x, height + 1);
+  }
+  for (let y = 2; y <= height + 1; y++) {
+      setRGBA(4, y, 8, y);
+  }
+  for (let y = 2; y <= height + 1; y++) {
+      setRGBA(width + 8, y, width + 4, y);
+  }
+  setRGBA(4, 1, 8, 2);
+  setRGBA(width + 8, 1, width + 4, 2);
+  setRGBA(4, height + 2, 8, height + 2);
+  setRGBA(width + 8, height + 2, width + 4, height + 1);
+  
+  return newImageMatrix;
+}
 
 const updateFilter = (data) => {
-  filterValue.value = data
+  filterValue.value = data;
+  renderFilterPreview();
+}
+
+const resetFilter = () => {
+  filterValue.value = [0, 0, 0, 0, 1, 0, 0, 0, 0];
+  filterPreset.value = {id: 1, label: 'Тождественное отображение', value: [0, 0, 0, 0, 1, 0, 0, 0, 0]}
+}
+
+const applyFilter = () => {
+
+}
+
+const renderFilterPreview = () => {
+  const canvas = document.getElementById('tempFilterCanvas');
+  const ctx = canvas.getContext('2d', {
+      willReadFrequently: true
+  });
+  const tempImageData = makeFilteredData();
+  ctx.putImageData(tempImageData, 0, 0);
 }
 
 const renderGradient = () => {
