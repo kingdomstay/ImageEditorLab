@@ -415,7 +415,7 @@
           <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
         </div>
         <div>
-          <el-button style="display: block; width: 100%;" type="primary" @click="changeGammaCorrection">Изменить</el-button>
+          <el-button style="display: block; width: 100%;" type="primary" @click="downloadFullSizeImage">Изменить</el-button>
         </div>
       </el-form>
 
@@ -472,7 +472,7 @@ const gradientCanvas = ref(null);
 const showCurvePreview = ref(false);
 const curveErrorMessage = ref(null);
 
-const imgCurvePreviewRenderedWidth = ref(0)
+const imgCurvePreviewRenderedWidth = ref(255)
 const imgCurvePreviewRenderedHeight = ref(255);
 
 const curvePoints = ref({
@@ -524,6 +524,7 @@ const getColorsHistData = () => {
   const ctx = canvas.getContext('2d', {
     willReadFrequently: true,
   });
+  
   const srcData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRenderedWidth.value, imgRenderedHeight.value).data;
   
   const colorsHistData = {
@@ -621,6 +622,10 @@ const buildRGBColorRows = (data, color) => {
       willReadFrequently: true,
     });
 
+    scalePercentage.value = 100;
+  
+    updateScale();
+
     const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRef.value.width, imgRef.value.height).data;
     const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
     
@@ -653,7 +658,7 @@ const buildRGBColorRows = (data, color) => {
     return tempImageData;
   }
 
-  const renderTempImage = () => {
+  const renderTempImage = async () => {
     const tempImageData = getTempImageData();
 
     const canvas = document.getElementById('tempCurveCanvas') as HTMLCanvasElement;
@@ -661,35 +666,82 @@ const buildRGBColorRows = (data, color) => {
       willReadFrequently: true
     });
 
-    const img = imgRef.value;
+    resizeImageData(tempImageData, tempImageData.width, tempImageData.height);
+    
 
-    const imageAspectRatio = img.width / img.height;
+    // createImageBitmap(tempImageData).then(img => {
+      
+    //   ctx.drawImage(
+    //     img,
+    //     0,
+    //     0,
+    //     imgCurvePreviewRenderedWidth.value,
+    //     imgCurvePreviewRenderedHeight.value
+    //     );
+    // })
 
-    const canvasAspectRatio = canvas.width / canvas.height;
-
-    if (imageAspectRatio > canvasAspectRatio) {
-      imgCurvePreviewRenderedWidth.value = canvas.width;
-      imgCurvePreviewRenderedHeight.value = imgCurvePreviewRenderedWidth.value / imageAspectRatio;
-    } else {
-      imgCurvePreviewRenderedHeight.value = canvas.height;
-      imgCurvePreviewRenderedWidth.value = imgCurvePreviewRenderedHeight.value * imageAspectRatio;
-    }
-
-    ctx.clearRect(0, 0, 255, 255);  // Очищаем canvas перед отрисовкой
-    createImageBitmap(tempImageData).then(renderer => {
-    ctx.drawImage(
-      renderer,
-      0,
-      0,
-      imgCurvePreviewRenderedWidth.value,
-      imgCurvePreviewRenderedHeight.value
-      );
-    })
+    
     
   }
 
-  const changeGammaCorrection = () => {
-  }
+  const resizeImageData = async (imageData, width, height) => {
+  const resizeWidth = width >> 0;  // Округляем до целого
+  const resizeHeight = height >> 0;
+  
+  // Создаем уменьшенную копию изображения
+  const ibm = await window.createImageBitmap(imageData, 0, 0, imageData.width / 2, imageData.height / 2, {
+    resizeWidth, 
+    resizeHeight
+  });
+
+  const canvas = document.getElementById('tempCurveCanvas') as HTMLCanvasElement;
+  
+  // Задаем размеры канваса в зависимости от нового размера изображения
+  canvas.width = resizeWidth;
+  canvas.height = resizeHeight;
+
+  const ctx = canvas.getContext('2d');
+
+  // Удаляем масштабирование, чтобы изображение правильно вписалось
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(ibm, 0, 0, resizeWidth, resizeHeight);
+  
+  // Возвращаем данные изображения
+  return ctx.getImageData(0, 0, resizeWidth, resizeHeight);
+};
+
+
+const downloadFullSizeImage = (filename = 'processed-image.png') => {
+  const originalCanvas = document.createElement('canvas');
+  
+  // Используем исходные размеры изображения
+  const originalWidth = imgRef.value.width;
+  const originalHeight = imgRef.value.height;
+
+  // Устанавливаем размеры канваса равными исходному изображению
+  originalCanvas.width = originalWidth;
+  originalCanvas.height = originalHeight;
+  
+  const ctx = originalCanvas.getContext('2d');
+  
+  // Получаем обработанные данные изображения (например, из tempImageData)
+  const tempImageData = getTempImageData(); // Здесь используется ваша функция для получения обработанных данных
+  
+  // Отрисовываем данные на канвас в оригинальном размере
+  ctx.putImageData(tempImageData, 0, 0);
+
+  // Преобразуем содержимое канваса в данные изображения (по умолчанию PNG)
+  const imageUrl = originalCanvas.toDataURL('image/png');  // Можете изменить на 'image/jpeg' для JPG формата
+  
+
+  const newImg = new Image();
+    newImg.src = imageUrl;
+
+    imgRef.value = newImg;
+
+    drawImage()
+}
+
 
 const toggleAspectRatio = () => {
   if (maintainAspectRatio.value) {
