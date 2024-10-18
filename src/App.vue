@@ -419,6 +419,120 @@
         </div>
       </el-form>
 
+      <el-form v-show="selectedSection === 'filter'">
+        <el-text size="large" style="padding-bottom: 2rem;">Инструмент Фильтр</el-text>
+        <div style="margin-top: 1rem;">
+          <!-- background: #333333 -->
+          <canvas ref="filterCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        </div>
+        <el-select v-model="filterPreset"  @change="updateFilter(filterPreset.value)">
+          <el-option v-for="filter in filterPresets" :key="filter.id" :label="filter.label" :value="filter"></el-option>
+        </el-select>
+        <el-form-item style="margin-bottom: 0.5rem;">
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[0]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[1]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[2]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+        </el-form-item>
+        <el-form-item style="margin-bottom: 0.5rem;">
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[3]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[4]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[5]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+        </el-form-item>
+        <el-form-item style="margin-bottom: 0.5rem;">
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[6]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[7]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+          <el-col :span="1"></el-col>
+          <el-col :span="7">
+            <el-input-number
+              v-model="filterValue[8]"
+              :min="-255"
+              :max="255"
+              controls-position="right"
+              style="width: 100%;"
+            />
+          </el-col>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="showCurvePreview" label="Показывать предпросмотр" size="large" />
+        </el-form-item>
+        <canvas v-show="showCurvePreview" id="tempCurveCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        <div style="margin-bottom: .25rem;">
+          <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
+        </div>
+        <div>
+          <el-button style="display: block; width: 100%;" type="primary" @click="downloadFullSizeImage">Изменить</el-button>
+        </div>
+      </el-form>
+
       <el-empty v-if="selectedSection === null" description="Для начала работы загрузи изображение">
         <el-button style="margin: .2rem auto;" type="primary" icon="folderOpened" @click="uploadLocalImage" >Из локального хранилища</el-button>
         <el-button style="margin: .2rem auto;" type="default" icon="link" @click="uploadUrlImage" >Через URL адрес</el-button>
@@ -485,6 +599,40 @@ const curvePoints = ref({
       "out": 255,
     },
 });
+
+type Filter = {
+  id: number;
+  label: string;
+  value: number[];
+}
+
+const filterPreset = ref<Filter>({id: 1, label: 'Тождественное отображение', value: [0, 0, 0, 0, 1, 0, 0, 0, 0]});
+const filterPresets = ref([{
+  id: 1,
+  label: 'Тождественное отображение',
+  value: [0, 0, 0, 0, 1, 0, 0, 0, 0]
+},
+{
+  id: 2,
+  label: 'Повышение резкости',
+  value: [0, -1, 0, -1, 5, -1, 0, -1, 0]
+},
+{
+  id: 3,
+  label: 'Фильтр Гаусса',
+  value: [1, 2, 1, 2, 4, 2, 1, 2, 1]
+},
+{
+  id: 4,
+  label: 'Прямоугольное размытие',
+  value: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+}]);
+
+const filterValue = ref([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+
+const updateFilter = (data) => {
+  filterValue.value = data
+}
 
 const renderGradient = () => {
   const canvas = gradientCanvas.value;
