@@ -529,7 +529,7 @@
         <el-form-item>
           <el-checkbox v-model="showFilterPreview" @change="renderFilterPreview" label="Показывать предпросмотр" size="large" />
         </el-form-item>
-        <canvas v-show="showFilterPreview" id="tempFilterCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        <img v-show="showFilterPreview" id="previewFilter" style="width: 100%; height: auto;">
         <div style="margin-bottom: .25rem;">
           <el-button style="display: block; width: 100%;" @click="resetFilter">Сбросить</el-button>
         </div>
@@ -652,53 +652,85 @@ const arrayToMatrix = (array: number[]) => {
   return matrix; 
 }
 
-const makeFilteredData = () => {
-  const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', {
-      willReadFrequently: true,
-    });
+const normalizeData = (data: Uint8ClampedArray) => {
+  let min = data[0];
+  let max = data[0];
 
-    scalePercentage.value = 100;
-  
-    updateScale();
-
-    const canvasImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRef.value.width, imgRef.value.height);
-    const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
-
-    let kernel = arrayToMatrix(filterValue.value);
-    
-    const height = imgRef.value.height;
-    const width = imgRef.value.width;
-
-    const srcData = canvasImageData.data;
-
-    let imageMatrix = makeImageMatrix(srcData, width);
-    imageMatrix = edgeMatrixPrepare(imageMatrix, width, height);
-
-    let pos = 0;
-    for (let y = 2; y <= height + 1; y++) {
-      for (let x = 8; x <= width * 4 + 4; x+=4) {
-        let R = 0;
-        let G = 0;
-        let B = 0;
-        for (let s = -1; s <= 1; s++) {
-          for (let t = -1; t <= 1; t++) {
-            R += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 3 + s * 4];
-            G += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 2 + s * 4];
-            B += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 1 + s * 4];
-          }
-        }
-        newImageData[pos] = R;
-        newImageData[pos + 1] = G;
-        newImageData[pos + 2] = B;
-        newImageData[pos + 3] = 255;  
-        pos += 4;
-      }
-    }
-    const tempImageData = new ImageData(newImageData, canvasImageData.width, canvasImageData.height);
-
-    return tempImageData;
+  // Находим минимальное и максимальное значения вручную
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] < min) min = data[i];
+    if (data[i] > max) max = data[i];
   }
+
+  // Нормализуем данные в диапазоне 0-255
+  const normalizedData = new Uint8ClampedArray(data.length);
+  for (let i = 0; i < data.length; i++) {
+    normalizedData[i] = ((data[i] - min) / (max - min)) * 255;
+  }
+
+  return normalizedData;
+};
+
+
+const makeFilteredData = () => {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d', {
+    willReadFrequently: true,
+  });
+
+  if (!ctx || !imgRef.value) return;
+
+  const saveCanvas = document.createElement('canvas');
+  const saveCtx = saveCanvas.getContext('2d', {
+    willReadFrequently: true,
+  });
+
+  saveCanvas.width = imgRef.value.width;
+  saveCanvas.height = imgRef.value.height;
+
+  saveCtx?.drawImage(imgRef.value, 0, 0);
+  const canvasImageData = saveCtx.getImageData(0, 0, imgRef.value.width, imgRef.value.height);
+
+  const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
+
+  let kernel = arrayToMatrix(filterValue.value);
+  
+  const height = imgRef.value.height;
+  const width = imgRef.value.width;
+
+  const srcData = canvasImageData.data;
+
+  let imageMatrix = makeImageMatrix(srcData, width);
+  imageMatrix = edgeMatrixPrepare(imageMatrix, width, height);
+
+  let pos = 0;
+  for (let y = 2; y <= height + 1; y++) {
+    for (let x = 8; x <= width * 4 + 4; x += 4) {
+      let R = 0;
+      let G = 0;
+      let B = 0;
+      for (let s = -1; s <= 1; s++) {
+        for (let t = -1; t <= 1; t++) {
+          R += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 3 + s * 4];
+          G += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 2 + s * 4];
+          B += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 1 + s * 4];
+        }
+      }
+      newImageData[pos] = R;
+      newImageData[pos + 1] = G;
+      newImageData[pos + 2] = B;
+      newImageData[pos + 3] = 255;
+      pos += 4;
+    }
+  }
+
+  // Применяем нормализацию к результатам
+  const normalizedData = normalizeData(newImageData);
+  const tempImageData = new ImageData(normalizedData, canvasImageData.width, canvasImageData.height);
+
+  return tempImageData;
+};
+
 
   const makeImageMatrix = (srcData: Uint8ClampedArray, width: number) => {
   if (!srcData || srcData.length === 0) {
@@ -776,16 +808,32 @@ const resetFilter = () => {
 }
 
 const applyFilter = () => {
+  const imgElement = document.getElementById('previewFilter');
+  imgRef.value = imgElement as HTMLImageElement;
 
+  drawImage();
 }
 
 const renderFilterPreview = () => {
-  const canvas = document.getElementById('tempFilterCanvas');
-  const ctx = canvas.getContext('2d', {
-      willReadFrequently: true
-  });
   const tempImageData = makeFilteredData();
-  ctx.putImageData(tempImageData, 0, 0);
+
+  // Создаем холст с размерами, соответствующими ImageData
+  const canvasSave = document.createElement('canvas');
+  canvasSave.width = tempImageData.width;
+  canvasSave.height = tempImageData.height;
+
+  // Получаем контекст 2D для рисования
+  const ctxSave = canvasSave.getContext('2d');
+  
+  // Рисуем ImageData на холст
+  ctxSave.putImageData(tempImageData, 0, 0);
+
+  // Преобразуем холст в Data URL
+  const imageUrl = canvasSave.toDataURL();
+
+  // Находим <img> элемент и устанавливаем ему src
+  const imgElement = document.getElementById('previewFilter');
+  imgElement.src = imageUrl;
 }
 
 const renderGradient = () => {
