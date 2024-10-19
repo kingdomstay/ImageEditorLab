@@ -810,7 +810,6 @@ const resetFilter = () => {
 const applyFilter = () => {
   const imgElement = document.getElementById('previewFilter');
   imgRef.value = imgElement as HTMLImageElement;
-
   drawImage();
 }
 
