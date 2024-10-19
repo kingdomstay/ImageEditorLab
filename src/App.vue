@@ -408,9 +408,9 @@
         </el-form-item>
         <p v-if="curveErrorMessage">Ошибка: {{ curveErrorMessage }}</p>
         <el-form-item>
-          <el-checkbox v-model="showCurvePreview" label="Показывать предпросмотр" size="large" />
+          <el-checkbox v-model="showCurvePreview" @change="changeCurvePoint" label="Показывать предпросмотр" size="large" />
         </el-form-item>
-        <canvas v-show="showCurvePreview" id="tempCurveCanvas" width="256" height="256" style="width: 255px; height: 255px; background: #FFF;"></canvas>
+        <img v-show="showCurvePreview" id="previewGradient" style="width: 100%; height: auto;">
         <div style="margin-bottom: .25rem;">
           <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
         </div>
@@ -975,7 +975,17 @@ const buildRGBColorRows = (data, color) => {
   
     updateScale();
 
-    const srcImageData = ctx.getImageData(imgOffsetX.value, imgOffsetY.value, imgRef.value.width, imgRef.value.height).data;
+    const saveCanvas = document.createElement('canvas');
+  const saveCtx = saveCanvas.getContext('2d', {
+    willReadFrequently: true,
+  });
+
+  saveCanvas.width = imgRef.value.width;
+  saveCanvas.height = imgRef.value.height;
+
+  saveCtx?.drawImage(imgRef.value, 0, 0);
+  const srcImageData = saveCtx.getImageData(0, 0, imgRef.value.width, imgRef.value.height).data;
+
     const newImageData = new Uint8ClampedArray(imgRef.value.width * imgRef.value.height * 4);
     
     const x1 = curvePoints.value.enter.in;
@@ -1010,54 +1020,24 @@ const buildRGBColorRows = (data, color) => {
   const renderTempImage = async () => {
     const tempImageData = getTempImageData();
 
-    const canvas = document.getElementById('tempCurveCanvas') as HTMLCanvasElement;
-    const ctx = canvas.getContext('2d', {
-      willReadFrequently: true
-    });
+    // Создаем холст с размерами, соответствующими ImageData
+    const canvasSave = document.createElement('canvas');
+    canvasSave.width = tempImageData.width;
+    canvasSave.height = tempImageData.height;
 
-    resizeImageData(tempImageData, tempImageData.width, tempImageData.height);
+    // Получаем контекст 2D для рисования
+    const ctxSave = canvasSave.getContext('2d');
     
+    // Рисуем ImageData на холст
+    ctxSave.putImageData(tempImageData, 0, 0);
 
-    // createImageBitmap(tempImageData).then(img => {
-      
-    //   ctx.drawImage(
-    //     img,
-    //     0,
-    //     0,
-    //     imgCurvePreviewRenderedWidth.value,
-    //     imgCurvePreviewRenderedHeight.value
-    //     );
-    // })
+    // Преобразуем холст в Data URL
+    const imageUrl = canvasSave.toDataURL();
 
-    
-    
+    // Находим <img> элемент и устанавливаем ему src
+    const imgElement = document.getElementById('previewGradient');
+    imgElement.src = imageUrl;
   }
-
-  const resizeImageData = async (imageData, width, height) => {
-  const resizeWidth = width >> 0;  // Округляем до целого
-  const resizeHeight = height >> 0;
-  
-  // Создаем уменьшенную копию изображения
-  const ibm = await window.createImageBitmap(imageData, 0, 0, imageData.width / 2, imageData.height / 2, {
-    resizeWidth, 
-    resizeHeight
-  });
-
-  const canvas = document.getElementById('tempCurveCanvas') as HTMLCanvasElement;
-  
-  // Задаем размеры канваса в зависимости от нового размера изображения
-  canvas.width = resizeWidth;
-  canvas.height = resizeHeight;
-
-  const ctx = canvas.getContext('2d');
-
-  // Удаляем масштабирование, чтобы изображение правильно вписалось
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(ibm, 0, 0, resizeWidth, resizeHeight);
-  
-  // Возвращаем данные изображения
-  return ctx.getImageData(0, 0, resizeWidth, resizeHeight);
-};
 
 
 const downloadFullSizeImage = (filename = 'processed-image.png') => {
