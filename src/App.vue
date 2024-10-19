@@ -415,7 +415,7 @@
           <el-button style="display: block; width: 100%;" @click="resetCurvePoints">Сбросить</el-button>
         </div>
         <div>
-          <el-button style="display: block; width: 100%;" type="primary" @click="downloadFullSizeImage">Изменить</el-button>
+          <el-button style="display: block; width: 100%;" type="primary" @click="applyGradient">Изменить</el-button>
         </div>
       </el-form>
 
@@ -1040,35 +1040,10 @@ const buildRGBColorRows = (data, color) => {
   }
 
 
-const downloadFullSizeImage = (filename = 'processed-image.png') => {
-  const originalCanvas = document.createElement('canvas');
-  
-  // Используем исходные размеры изображения
-  const originalWidth = imgRef.value.width;
-  const originalHeight = imgRef.value.height;
-
-  // Устанавливаем размеры канваса равными исходному изображению
-  originalCanvas.width = originalWidth;
-  originalCanvas.height = originalHeight;
-  
-  const ctx = originalCanvas.getContext('2d');
-  
-  // Получаем обработанные данные изображения (например, из tempImageData)
-  const tempImageData = getTempImageData(); // Здесь используется ваша функция для получения обработанных данных
-  
-  // Отрисовываем данные на канвас в оригинальном размере
-  ctx.putImageData(tempImageData, 0, 0);
-
-  // Преобразуем содержимое канваса в данные изображения (по умолчанию PNG)
-  const imageUrl = originalCanvas.toDataURL('image/png');  // Можете изменить на 'image/jpeg' для JPG формата
-  
-
-  const newImg = new Image();
-    newImg.src = imageUrl;
-
-    imgRef.value = newImg;
-
-    drawImage()
+const applyGradient = () => {
+  const imgElement = document.getElementById('previewGradient');
+  imgRef.value = imgElement as HTMLImageElement;
+  drawImage();
 }
 
 
